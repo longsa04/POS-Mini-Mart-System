@@ -7,6 +7,7 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import net.cmspos.cmspos.model.enums.PurchaseOrderStatus;
 
 @Getter
 @Setter
@@ -17,6 +18,8 @@ public class PurchaseOrderResponseDto {
     private Long poId;
     private Double total;
     private LocalDateTime orderDate;
+    private PurchaseOrderStatus status;
+    private LocalDateTime receivedAt;
     private SimpleReferenceDto supplier;
     private SimpleReferenceDto location;
     private List<PurchaseOrderLineResponseDto> details;

@@ -15,6 +15,9 @@ public class StockMovementDto {
     private String productName;
     private Long locationId;
     private String locationName;
+    private Long poId;
+    private Long supplierId;
+    private String supplierName;
     private StockMovementType movementType;
     private Integer quantityChange;
     private Integer resultingQuantity;

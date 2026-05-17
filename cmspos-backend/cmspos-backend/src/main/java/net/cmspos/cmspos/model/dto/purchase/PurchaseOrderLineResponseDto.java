@@ -14,6 +14,7 @@ import lombok.Setter;
 public class PurchaseOrderLineResponseDto {
     private Long id;
     private Integer quantity;
+    private Integer receivedQty;
     private Double price;
     private SimpleReferenceDto product;
 }

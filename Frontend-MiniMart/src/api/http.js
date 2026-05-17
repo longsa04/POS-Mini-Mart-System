@@ -1,7 +1,7 @@
 import { getAuthToken } from "../utils/authStorage";
 
 export const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8085";
+  import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8090";
 
 export const buildAuthHeaders = (headers = {}) => {
   const token = getAuthToken();

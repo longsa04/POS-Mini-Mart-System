@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../../context/AuthContext";
 import { ROLE_DEFAULT_ROUTE } from "../../../config/permissions";
+import "./login.css";
 
 const Login = () => {
   const { login, loading } = useAuth();
@@ -20,7 +21,10 @@ const Login = () => {
     }
 
     try {
-      const result = await login({ username: username.trim(), password: password.trim() });
+      const result = await login({
+        username: username.trim(),
+        password: password.trim(),
+      });
       const role = result?.user?.role;
       const target = ROLE_DEFAULT_ROUTE[role] ?? "/";
       navigate(target, { replace: true });
@@ -30,60 +34,60 @@ const Login = () => {
   };
 
   return (
-    <div className="min-vh-100 d-flex align-items-center justify-content-center bg-light">
-      <div className="card shadow-sm" style={{ maxWidth: "420px", width: "100%" }}>
-        <div className="card-body p-4">
-          <div className="text-center mb-4">
-            <img
-              src="https://cdn-icons-png.flaticon.com/128/11272/11272927.png"
-              alt="Mini Mart"
-              className="mb-3"
-              style={{ height: "64px" }}
-            />
-            <h1 className="h4">Mini Mart POS</h1>
-            <p className="text-muted">Sign in to continue</p>
-          </div>
-          <form onSubmit={handleSubmit} className="d-grid gap-3">
-            <div>
-              <label htmlFor="username" className="form-label">
-                Username
-              </label>
+    <div className="login-page">
+      <div className="login-shell">
+        <h1 className="login-title">Welcome Back!</h1>
+        <form onSubmit={handleSubmit} className="login-form">
+          <label className="login-field" htmlFor="username">
+            <span className="login-label">Username</span>
+            <div className="login-input-wrap">
+              <span className="login-input-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24">
+                  <circle cx="12" cy="8" r="3.5" />
+                  <path d="M5 19c1.8-3 12.2-3 14 0" />
+                </svg>
+              </span>
               <input
                 id="username"
                 type="text"
-                className="form-control"
+                className="login-input"
+                placeholder="Username"
                 value={username}
                 onChange={(event) => setUsername(event.target.value)}
                 autoComplete="username"
               />
             </div>
-            <div>
-              <label htmlFor="password" className="form-label">
-                Password
-              </label>
+          </label>
+          <label className="login-field" htmlFor="password">
+            <span className="login-label">Password</span>
+            <div className="login-input-wrap">
+              <span className="login-input-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24">
+                  <rect x="6" y="10" width="12" height="9" rx="2" />
+                  <path d="M8 10V8a4 4 0 0 1 8 0v2" fill="none" />
+                </svg>
+              </span>
               <input
                 id="password"
                 type="password"
-                className="form-control"
+                className="login-input"
+                placeholder="Password"
                 value={password}
                 onChange={(event) => setPassword(event.target.value)}
                 autoComplete="current-password"
               />
+              {/* <span className="login-input-suffix" aria-hidden="true">
+                <span />
+                <span />
+                <span />
+              </span> */}
             </div>
-            {error && <div className="alert alert-danger mb-0">{error}</div>}
-            <button type="submit" className="btn btn-primary" disabled={loading}>
-              {loading ? "Signing in..." : "Sign in"}
-            </button>
-          </form>
-          <div className="mt-4 small text-muted">
-            <p className="mb-1">Demo users</p>
-            <ul className="mb-0 ps-3">
-              <li>admin / admin</li>
-              <li>manager / manager</li>
-              <li>cashier / cashier</li>
-            </ul>
-          </div>
-        </div>
+          </label>
+          {error && <div className="login-error">{error}</div>}
+          <button type="submit" className="login-button" disabled={loading}>
+            {loading ? "Signing in..." : "Login"}
+          </button>
+        </form>
       </div>
     </div>
   );

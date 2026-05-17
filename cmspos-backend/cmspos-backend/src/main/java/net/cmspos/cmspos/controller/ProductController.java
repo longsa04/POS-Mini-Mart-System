@@ -2,9 +2,12 @@ package net.cmspos.cmspos.controller;
 
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import net.cmspos.cmspos.model.dto.PosProductDto;
 import net.cmspos.cmspos.model.dto.ProductDto;
+import net.cmspos.cmspos.model.dto.ProductSupplierDto;
 import net.cmspos.cmspos.model.entity.Product;
 import net.cmspos.cmspos.service.ProductService;
+import net.cmspos.cmspos.service.ProductSupplierService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.CrossOrigin;
@@ -24,10 +27,16 @@ import org.springframework.web.bind.annotation.RestController;
 public class ProductController {
 
     private final ProductService productService;
+    private final ProductSupplierService productSupplierService;
 
     @GetMapping
     public ResponseEntity<List<Product>> getAllProducts() {
         return ResponseEntity.ok(productService.getAllProducts());
+    }
+
+    @GetMapping("/in-stock")
+    public ResponseEntity<List<PosProductDto>> getInStockProducts() {
+        return ResponseEntity.ok(productService.getInStockProducts());
     }
 
     @PostMapping
@@ -63,5 +72,23 @@ public class ProductController {
     public ResponseEntity<Void> deleteProduct(@PathVariable Long id) {
         productService.deleteProduct(id);
         return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/{id}/preferred-supplier")
+    public ResponseEntity<ProductSupplierDto> getPreferredSupplier(@PathVariable Long id) {
+        ProductSupplierDto dto = productSupplierService.getPreferredSupplier(id);
+        if (dto == null) {
+            return ResponseEntity.noContent().build();
+        }
+        return ResponseEntity.ok(dto);
+    }
+
+    @PutMapping("/{id}/preferred-supplier")
+    public ResponseEntity<ProductSupplierDto> setPreferredSupplier(@PathVariable Long id, @RequestBody ProductSupplierDto dto) {
+        if (dto == null || dto.getSupplierId() == null) {
+            productSupplierService.clearPreferredSupplier(id);
+            return ResponseEntity.noContent().build();
+        }
+        return ResponseEntity.ok(productSupplierService.setPreferredSupplier(id, dto));
     }
 }

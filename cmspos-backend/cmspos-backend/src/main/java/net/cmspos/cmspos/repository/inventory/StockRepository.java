@@ -7,6 +7,7 @@ import net.cmspos.cmspos.model.entity.Product;
 import net.cmspos.cmspos.model.entity.inventory.Stock;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 
 @Repository
@@ -27,6 +28,9 @@ public interface StockRepository extends JpaRepository<Stock, Long> {
 
     @EntityGraph(attributePaths = {"product", "product.category", "location"})
     Optional<Stock> findByProduct_ProductIdAndLocation_LocationId(Long productId, Long locationId);
+
+    @Query("SELECT s FROM Stock s JOIN FETCH s.product p JOIN FETCH p.category WHERE s.quantity > 0")
+    List<Stock> findAllInStock();
 }
 
 

@@ -22,6 +22,9 @@ public class ProfitLossReportDto {
     private double grossProfit;
     private double totalExpenses;
     private double netProfit;
+    private double totalInventoryPurchases;
+    private double currentInventoryValue;
     private List<ProfitLossProductDto> productBreakdown;
     private List<ExpenseSummaryDto> expenseBreakdown;
+    private List<SupplierPurchaseSummaryDto> purchasesBySupplier;
 }

@@ -18,4 +18,6 @@ public class ProfitLossProductDto {
     private double revenue;
     private double costOfGoods;
     private double grossProfit;
+    private int quantityInStock;
+    private double inventoryValue;
 }

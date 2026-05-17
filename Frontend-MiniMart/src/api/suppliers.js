@@ -45,3 +45,12 @@ export const deleteSupplier = async (supplierId) => {
 
   await handleJsonResponse(response, "Failed to delete supplier");
 };
+
+export const fetchSupplierProducts = async (supplierId, { signal } = {}) => {
+  const response = await fetch(`${suppliersEndpoint}/${supplierId}/products`, {
+    signal,
+    headers: buildAuthHeaders({ Accept: "application/json" }),
+  });
+
+  return handleJsonResponse(response, "Failed to load supplier products");
+};

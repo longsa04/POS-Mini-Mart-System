@@ -5,7 +5,7 @@
 
 /* Sidebar styles */
 .d-block.sticky {
-  background: #f8f9fa;
+  background: var(--mm-surface-muted);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
   border-radius: 12px;
   padding: 24px 16px;
@@ -19,12 +19,12 @@
   transition: background 0.2s;
 }
 .menu-item:hover {
-  background: #e9ecef;
+  background: var(--mm-primary-soft);
 }
 .menu-icon {
   font-size: 1.3rem;
   margin-right: 10px;
-  color: #007bff;
+  color: var(--mm-primary);
 }
 .btn-menu-link {
   font-weight: 500;

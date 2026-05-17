@@ -11,7 +11,9 @@ import lombok.NoArgsConstructor;
 import lombok.ToString;
 import net.cmspos.cmspos.model.entity.Location;
 import net.cmspos.cmspos.model.entity.Product;
+import net.cmspos.cmspos.model.entity.Supplier;
 import net.cmspos.cmspos.model.entity.order.Order;
+import net.cmspos.cmspos.model.entity.purchase.PurchaseOrder;
 import net.cmspos.cmspos.model.enums.StockMovementType;
 
 @Entity
@@ -37,6 +39,16 @@ public class StockMovement {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "order_id", foreignKey = @ForeignKey(name = "fk_stock_movement_order"))
     private Order order;
+
+    @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "po_id", foreignKey = @ForeignKey(name = "fk_stock_movement_purchase_order"))
+    private PurchaseOrder purchaseOrder;
+
+    @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "supplier_id", foreignKey = @ForeignKey(name = "fk_stock_movement_supplier"))
+    private Supplier supplier;
 
     @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
     @ManyToOne(fetch = FetchType.LAZY)

@@ -21,8 +21,8 @@ public class Product {
     @Column(nullable = false, length = 150)
     private String name;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "category_id", foreignKey = @ForeignKey(name = "fk_product_category"))
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "category_id", nullable = false, foreignKey = @ForeignKey(name = "fk_product_category"))
     @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
     private Category category;
 

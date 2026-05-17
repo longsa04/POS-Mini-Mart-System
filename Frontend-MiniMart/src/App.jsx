@@ -15,6 +15,7 @@ import Suppliers from "./layout/page/purchasing/Suppliers";
 import PurchaseOrders from "./layout/page/purchasing/PurchaseOrders";
 import BranchSettings from "./layout/page/settings/BranchSettings";
 import ReceiptBranding from "./layout/page/settings/ReceiptBranding";
+import Expenses from "./layout/page/finance/Expenses";
 import Login from "./layout/page/auth/Login";
 import Unauthorized from "./layout/page/auth/Unauthorized";
 import AppLayout from "./layout/AppLayout";
@@ -100,6 +101,10 @@ function App() {
         <Route
           path="/purchasing/purchase-orders"
           element={withRole(PurchaseOrders, [ROLE.ADMIN])}
+        />
+        <Route
+          path="/finance/expenses"
+          element={withRole(Expenses, [ROLE.ADMIN, ROLE.MANAGER])}
         />
         <Route
           path="/settings"

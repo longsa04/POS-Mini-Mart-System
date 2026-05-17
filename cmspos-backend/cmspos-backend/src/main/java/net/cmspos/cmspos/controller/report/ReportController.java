@@ -3,9 +3,11 @@ package net.cmspos.cmspos.controller.report;
 import java.time.LocalDate;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import net.cmspos.cmspos.model.dto.report.DashboardReportDto;
 import net.cmspos.cmspos.model.dto.report.DailySalesSummaryDto;
 import net.cmspos.cmspos.model.dto.report.InventoryReportDto;
 import net.cmspos.cmspos.model.dto.report.ProfitLossReportDto;
+import net.cmspos.cmspos.model.dto.report.SalesSummaryReportDto;
 import net.cmspos.cmspos.model.dto.report.TopProductSalesDto;
 import net.cmspos.cmspos.service.ReportService;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -23,6 +25,20 @@ import org.springframework.web.bind.annotation.RestController;
 public class ReportController {
 
     private final ReportService reportService;
+
+    @GetMapping("/dashboard")
+    public ResponseEntity<DashboardReportDto> getDashboardReport(
+            @RequestParam(required = false) Long locationId) {
+        DashboardReportDto report = reportService.getDashboardReport(locationId);
+        return ResponseEntity.ok(report);
+    }
+
+    @GetMapping("/sales-summary")
+    public ResponseEntity<SalesSummaryReportDto> getSalesSummary(
+            @RequestParam(required = false) Long locationId) {
+        SalesSummaryReportDto report = reportService.getSalesSummary(locationId);
+        return ResponseEntity.ok(report);
+    }
 
     @GetMapping("/sales/daily")
     public ResponseEntity<List<DailySalesSummaryDto>> getDailySalesSummary(

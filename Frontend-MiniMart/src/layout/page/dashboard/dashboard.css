@@ -32,10 +32,10 @@
 }
 
 .kpi-card {
-  background: var(--bs-body-bg, #ffffff);
+  background: var(--mm-surface);
   border-radius: 16px;
   padding: 1.25rem 1.35rem;
-  box-shadow: 0 16px 40px rgba(15, 23, 42, 0.08);
+  box-shadow: var(--mm-card-shadow);
   display: flex;
   flex-direction: column;
   gap: 0.35rem;
@@ -51,7 +51,7 @@
   font-size: 0.8rem;
   letter-spacing: 0.05em;
   text-transform: uppercase;
-  color: #6c757d;
+  color: #6b7280;
 }
 
 .kpi-value {
@@ -85,10 +85,10 @@
 }
 
 .dashboard-panel {
-  background: var(--bs-body-bg, #ffffff);
+  background: var(--mm-surface);
   border-radius: 16px;
   padding: 1.35rem 1.4rem;
-  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.06);
+  box-shadow: var(--mm-card-shadow);
 }
 
 .panel-heading {
@@ -122,13 +122,13 @@
 }
 
 .line-stroke {
-  stroke: #2563eb;
+  stroke: var(--mm-primary);
   stroke-width: 2;
   fill: none;
 }
 
 .line-dot {
-  fill: #2563eb;
+  fill: var(--mm-primary);
 }
 
 .sales-chart-axis {
@@ -143,7 +143,7 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  background: rgba(37, 99, 235, 0.08);
+  background: var(--mm-primary-soft);
   border-radius: 10px;
   padding: 0.65rem 0.85rem;
   font-size: 0.82rem;
@@ -152,7 +152,7 @@
 .sales-chart-summary strong {
   display: block;
   font-size: 1rem;
-  color: #1d4ed8;
+  color: var(--mm-primary);
 }
 
 .dashboard-table table {
@@ -205,7 +205,7 @@
   position: relative;
   width: 100%;
   height: 10px;
-  background: rgba(37, 99, 235, 0.13);
+  background: var(--mm-primary-soft);
   border-radius: 999px;
   overflow: hidden;
 }
@@ -213,33 +213,30 @@
 .category-fill {
   position: absolute;
   inset: 0;
-  background: linear-gradient(90deg, #2563eb, #1d4ed8);
+  background: var(--mm-accent-gradient);
 }
 
 .category-percent {
   font-weight: 600;
-  color: #1d4ed8;
+  color: var(--mm-primary);
   font-size: 0.85rem;
 }
 
 .top-products-list,
-.low-stock-list,
-.top-customers-list {
+.low-stock-list {
   display: flex;
   flex-direction: column;
   gap: 0.8rem;
 }
 
-.top-product,
-.top-customer {
+.top-product {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
   gap: 0.75rem;
 }
 
-.top-product .text-secondary,
-.top-customer .text-secondary {
+.top-product .text-secondary {
   font-size: 0.78rem;
 }
 
@@ -256,16 +253,6 @@
 
 .low-stock-item .badge {
   font-weight: 600;
-}
-
-.top-customers-list .top-customer {
-  padding-bottom: 0.6rem;
-  border-bottom: 1px solid rgba(15, 23, 42, 0.08);
-}
-
-.top-customers-list .top-customer:last-child {
-  border-bottom: none;
-  padding-bottom: 0;
 }
 
 @media (max-width: 768px) {

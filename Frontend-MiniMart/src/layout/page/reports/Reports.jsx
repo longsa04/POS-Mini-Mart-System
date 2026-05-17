@@ -1,9 +1,12 @@
 import "./reports.css";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import posConfig from "../../../config/posConfig";
-import { fetchOrders } from "../../../api/orders";
-import { fetchProfitLossReport } from "../../../api/reports";
+import {
+  fetchProfitLossReport,
+  fetchSalesSummaryReport,
+} from "../../../api/reports";
 import { fetchLocations } from "../../../api/locations";
+import DateRangeFilter from "../../../components/DateRangeFilter";
 
 const { currencySymbol: CURRENCY_SYMBOL } = posConfig;
 
@@ -68,50 +71,20 @@ const formatEnumLabel = (value) =>
 
 const normalizeStatus = (value) => (value ? String(value).toUpperCase() : "");
 
-const parseOrderDate = (value) => {
-  if (!value) return null;
-  const candidate = new Date(value);
-  if (Number.isNaN(candidate.getTime())) {
-    return null;
-  }
-  return candidate;
-};
-
-const isSameDay = (a, b) =>
-  a.getFullYear() === b.getFullYear() &&
-  a.getMonth() === b.getMonth() &&
-  a.getDate() === b.getDate();
-
-const buildSevenDayWindow = () => {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-
-  return Array.from({ length: 7 }, (_, index) => {
-    const day = new Date(today);
-    day.setDate(today.getDate() - (6 - index));
-    day.setHours(0, 0, 0, 0);
-    return {
-      date: day,
-      key: day.toISOString().slice(0, 10),
-      label: day.toLocaleDateString(undefined, { weekday: "short" }),
-    };
-  });
-};
-
 const SalesSummary = () => {
-  const [orders, setOrders] = useState([]);
+  const [report, setReport] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [lastUpdated, setLastUpdated] = useState(null);
 
-  const loadOrders = useCallback(async (signal) => {
+  const loadReport = useCallback(async (signal) => {
     setError(null);
     try {
-      const data = await fetchOrders({ signal });
+      const data = await fetchSalesSummaryReport({ signal });
       if (signal?.aborted) {
         return;
       }
-      setOrders(Array.isArray(data) ? data : []);
+      setReport(data ?? null);
       setLastUpdated(new Date());
     } catch (err) {
       if (err.name === "AbortError") {
@@ -125,188 +98,37 @@ const SalesSummary = () => {
     const controller = new AbortController();
     setLoading(true);
 
-    loadOrders(controller.signal).finally(() => {
+    loadReport(controller.signal).finally(() => {
       if (!controller.signal.aborted) {
         setLoading(false);
       }
     });
 
     return () => controller.abort();
-  }, [loadOrders]);
+  }, [loadReport]);
 
   const handleRefresh = () => {
     const controller = new AbortController();
     setLoading(true);
-    loadOrders(controller.signal).finally(() => {
+    loadReport(controller.signal).finally(() => {
       setLoading(false);
     });
   };
 
-  const today = useMemo(() => {
-    const ref = new Date();
-    ref.setHours(0, 0, 0, 0);
-    return ref;
-  }, []);
-
-  const ordersWithDates = useMemo(() => {
-    return orders
-      .map((order) => ({
-        ...order,
-        orderDateObj: parseOrderDate(order?.orderDate),
-      }))
-      .filter((order) => order.orderDateObj != null);
-  }, [orders]);
-
-  const ordersToday = useMemo(() => {
-    return ordersWithDates.filter((order) => isSameDay(order.orderDateObj, today));
-  }, [ordersWithDates, today]);
-
-  const paidOrdersToday = useMemo(
-    () =>
-      ordersToday.filter(
-        (order) => normalizeStatus(order.paymentStatus) === "PAID"
-      ),
-    [ordersToday]
-  );
-
-  const grossSalesToday = useMemo(
-    () =>
-      paidOrdersToday.reduce(
-        (sum, order) => sum + (Number(order.total) || 0),
-        0
-      ),
-    [paidOrdersToday]
-  );
-
-  const transactionsToday = ordersToday.length;
-
-  const pendingOrdersToday = useMemo(
-    () =>
-      ordersToday.filter(
-        (order) => normalizeStatus(order.paymentStatus) !== "PAID"
-      ),
-    [ordersToday]
-  );
-
-  const pendingAmountToday = useMemo(
-    () =>
-      pendingOrdersToday.reduce(
-        (sum, order) => sum + (Number(order.total) || 0),
-        0
-      ),
-    [pendingOrdersToday]
-  );
-
-  const averageTicketToday = transactionsToday
-    ? grossSalesToday / transactionsToday
-    : 0;
-
-  const sevenDayWindow = useMemo(() => buildSevenDayWindow(), []);
-
-  const dailyTrend = useMemo(() => {
-    return sevenDayWindow.map((day) => {
-      const revenue = ordersWithDates.reduce((sum, order) => {
-        if (
-          isSameDay(order.orderDateObj, day.date) &&
-          normalizeStatus(order.paymentStatus) === "PAID"
-        ) {
-          return sum + (Number(order.total) || 0);
-        }
-        return sum;
-      }, 0);
-
-      const transactions = ordersWithDates.filter((order) =>
-        isSameDay(order.orderDateObj, day.date)
-      ).length;
-
-      return {
-        ...day,
-        revenue,
-        transactions,
-      };
-    });
-  }, [ordersWithDates, sevenDayWindow]);
-
-  const statusBreakdown = useMemo(() => {
-    if (ordersToday.length === 0) {
-      return [];
-    }
-    const counts = new Map();
-    ordersToday.forEach((order) => {
-      const status = normalizeStatus(order.paymentStatus) || "UNKNOWN";
-      counts.set(status, (counts.get(status) || 0) + 1);
-    });
-
-    const maxCount = Math.max(...counts.values(), 1);
-
-    return Array.from(counts.entries())
-      .map(([status, count]) => ({
-        status,
-        count,
-        percent: Math.round((count / ordersToday.length) * 100),
-        relative: (count / maxCount) * 100,
-      }))
-      .sort((a, b) => b.count - a.count);
-  }, [ordersToday]);
-
-  const peakHours = useMemo(() => {
-    if (ordersToday.length === 0) {
-      return [];
-    }
-
-    const byHour = new Map();
-
-    ordersToday.forEach((order) => {
-      const hour = order.orderDateObj.getHours();
-      if (!byHour.has(hour)) {
-        byHour.set(hour, { count: 0, revenue: 0 });
-      }
-      const bucket = byHour.get(hour);
-      bucket.count += 1;
-      if (normalizeStatus(order.paymentStatus) === "PAID") {
-        bucket.revenue += Number(order.total) || 0;
-      }
-    });
-
-    return Array.from(byHour.entries())
-      .map(([hour, metrics]) => ({
-        hour,
-        label: `${hour.toString().padStart(2, "0")}:00`,
-        ...metrics,
-      }))
-      .sort((a, b) => b.count - a.count || b.revenue - a.revenue)
-      .slice(0, 6);
-  }, [ordersToday]);
-
-  const recentOrders = useMemo(() => {
-    return [...ordersWithDates]
-      .sort((a, b) => b.orderDateObj - a.orderDateObj)
-      .slice(0, 10);
-  }, [ordersWithDates]);
-
-  const dailyTotalLast7 = useMemo(
-    () => dailyTrend.reduce((sum, day) => sum + day.revenue, 0),
-    [dailyTrend]
-  );
-
-  const paidOrderCountLast7 = useMemo(
-    () =>
-      ordersWithDates.filter((order) => {
-        const status = normalizeStatus(order.paymentStatus);
-        if (status !== "PAID") {
-          return false;
-        }
-        return sevenDayWindow.some((day) => isSameDay(order.orderDateObj, day.date));
-      }).length,
-    [ordersWithDates, sevenDayWindow]
-  );
-
-  const averageTicketLast7 = paidOrderCountLast7
-    ? dailyTotalLast7 / paidOrderCountLast7
-    : 0;
+  const grossSalesToday = Number(report?.grossSalesToday ?? 0);
+  const transactionsToday = Number(report?.transactionsToday ?? 0);
+  const paidOrdersToday = Number(report?.paidOrdersToday ?? 0);
+  const pendingOrdersToday = Number(report?.pendingOrdersToday ?? 0);
+  const averageTicketToday = Number(report?.averageTicketToday ?? 0);
+  const averageTicketLast7 = Number(report?.averageTicketLast7Days ?? 0);
+  const pendingAmountToday = Number(report?.pendingAmountToday ?? 0);
+  const dailyTrend = report?.dailyTrend ?? [];
+  const statusBreakdown = report?.statusBreakdown ?? [];
+  const peakHours = report?.peakHours ?? [];
+  const recentOrders = report?.recentOrders ?? [];
 
   const maxDailyRevenue = Math.max(
-    ...dailyTrend.map((day) => day.revenue),
+    ...dailyTrend.map((day) => Number(day?.totalSales ?? 0)),
     1
   );
 
@@ -316,7 +138,7 @@ const SalesSummary = () => {
         <div>
           <h2 className="mb-1">Sales Summary</h2>
           <p className="text-secondary mb-0">
-            Live sales metrics powered by POS orders from the Chbar Ampov branch.
+            Live sales metrics powered by backend report aggregates.
           </p>
         </div>
         <div className="summary-header-actions">
@@ -331,7 +153,7 @@ const SalesSummary = () => {
             onClick={handleRefresh}
             disabled={loading}
           >
-            {loading ? "Refreshing" : "Refresh data"}
+            {loading ? "Refreshing..." : "Refresh data"}
           </button>
         </div>
       </header>
@@ -350,7 +172,7 @@ const SalesSummary = () => {
           <div className="kpi-heading">Transactions (today)</div>
           <div className="kpi-value">{formatNumber(transactionsToday)}</div>
           <div className="kpi-subtitle text-secondary">
-            {paidOrdersToday.length} paid / {pendingOrdersToday.length} awaiting payment
+            {paidOrdersToday} paid / {pendingOrdersToday} awaiting payment
           </div>
         </article>
         <article className="summary-kpi-card">
@@ -374,25 +196,31 @@ const SalesSummary = () => {
           <div className="panel-header">
             <div>
               <h6 className="mb-0">Revenue trend</h6>
-              <span className="text-secondary small">Paid revenue over the last 7 days</span>
+              <span className="text-secondary small">
+                Paid revenue over the last 7 days
+              </span>
             </div>
           </div>
           <div className="daily-bars">
             {dailyTrend.map((day) => (
-              <div className="daily-bar" key={day.key}>
+              <div className="daily-bar" key={day.date}>
                 <div className="daily-bar-chart">
                   <div
                     className="daily-bar-fill"
-                    style={{ height: `${(day.revenue / maxDailyRevenue) * 100}%` }}
+                    style={{
+                      height: `${(Number(day.totalSales ?? 0) / maxDailyRevenue) * 100}%`,
+                    }}
                   />
                 </div>
                 <div className="daily-bar-meta">
-                  <span className="daily-bar-label">{day.label}</span>
+                  <span className="daily-bar-label">
+                    {formatDisplayDate(day.date)}
+                  </span>
                   <span className="daily-bar-value">
-                    {formatCurrency(day.revenue)}
+                    {formatCurrency(day.totalSales)}
                   </span>
                   <span className="daily-bar-count">
-                    {formatNumber(day.transactions)} orders
+                    {formatNumber(day.orderCount)} orders
                   </span>
                 </div>
               </div>
@@ -505,9 +333,9 @@ const SalesSummary = () => {
                 </tr>
               )}
               {recentOrders.map((order) => (
-                <tr key={order.orderId ?? order.id}>
-                  <td>{order.orderId ?? order.id ?? ""}</td>
-                  <td>{order?.customer?.name ?? "Walk-in"}</td>
+                <tr key={order.orderId}>
+                  <td>{order.orderId ?? "-"}</td>
+                  <td>{order.customerName ?? "Walk-in"}</td>
                   <td className="text-end">{formatCurrency(order.total)}</td>
                   <td>
                     <span
@@ -519,23 +347,25 @@ const SalesSummary = () => {
                           : "secondary"
                       }`}
                     >
-                      {normalizeStatus(order.paymentStatus) || ""}
+                      {normalizeStatus(order.paymentStatus) || "-"}
                     </span>
                   </td>
                   <td>
-                    {order.orderDateObj?.toLocaleString(undefined, {
-                      day: "2-digit",
-                      month: "short",
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    }) ?? ""}
+                    {order.orderDate
+                      ? new Date(order.orderDate).toLocaleString(undefined, {
+                          day: "2-digit",
+                          month: "short",
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })
+                      : "-"}
                   </td>
                 </tr>
               ))}
               {loading && (
                 <tr>
                   <td colSpan={5} className="text-center text-secondary py-4">
-                    Loading orders
+                    Loading orders...
                   </td>
                 </tr>
               )}
@@ -619,9 +449,7 @@ const ProfitLossReport = () => {
         if (err.name === "AbortError") {
           return;
         }
-        setError(
-          err.message || "Unable to load profit and loss report."
-        );
+        setError(err.message || "Unable to load profit and loss report.");
         setReport(null);
       })
       .finally(() => {
@@ -637,13 +465,10 @@ const ProfitLossReport = () => {
     () =>
       (locations ?? []).map((location) => ({
         id:
-          location?.locationId === undefined ||
-          location?.locationId === null
+          location?.locationId === undefined || location?.locationId === null
             ? ""
             : String(location.locationId),
-        name:
-          location?.name ??
-          `Location ${location?.locationId ?? ""}`,
+        name: location?.name ?? `Location ${location?.locationId ?? ""}`,
       })),
     [locations]
   );
@@ -666,6 +491,10 @@ const ProfitLossReport = () => {
     }));
   };
 
+  const handleDateRangeChange = (startDate, endDate) => {
+    setFilters((prev) => ({ ...prev, startDate, endDate }));
+  };
+
   const handleRefresh = () => {
     setRefreshKey((prev) => prev + 1);
   };
@@ -676,8 +505,11 @@ const ProfitLossReport = () => {
   const grossProfit = Number(report?.grossProfit ?? 0);
   const totalExpenses = Number(report?.totalExpenses ?? 0);
   const netProfit = Number(report?.netProfit ?? 0);
+  const totalInventoryPurchases = Number(report?.totalInventoryPurchases ?? 0);
+  const currentInventoryValue = Number(report?.currentInventoryValue ?? 0);
   const productBreakdown = report?.productBreakdown ?? [];
   const expenseBreakdown = report?.expenseBreakdown ?? [];
+  const purchasesBySupplier = report?.purchasesBySupplier ?? [];
 
   const grossMargin = totalRevenue !== 0 ? grossProfit / totalRevenue : 0;
   const netMargin = totalRevenue !== 0 ? netProfit / totalRevenue : 0;
@@ -695,7 +527,7 @@ const ProfitLossReport = () => {
     const formattedStart = formatDisplayDate(resolvedStart);
     const formattedEnd = formatDisplayDate(resolvedEnd);
     if (formattedStart && formattedEnd) {
-      return `${formattedStart} – ${formattedEnd}`;
+      return `${formattedStart} - ${formattedEnd}`;
     }
     return formattedStart || formattedEnd || "";
   }, [resolvedStart, resolvedEnd]);
@@ -707,6 +539,7 @@ const ProfitLossReport = () => {
     totalRevenue === 0 &&
     totalExpenses === 0 &&
     costOfGoodsSold === 0 &&
+    totalInventoryPurchases === 0 &&
     productBreakdown.length === 0 &&
     expenseBreakdown.length === 0;
 
@@ -724,37 +557,13 @@ const ProfitLossReport = () => {
             <span>Location: {activeLocationLabel}</span>
           </div>
         </div>
-        <div className="summary-header-actions profit-loss-actions">
+        <div className="summary-header-actions">
           {lastUpdated && (
             <span className="badge bg-secondary-subtle text-secondary">
               Updated {lastUpdated.toLocaleString()}
             </span>
           )}
           <div className="profit-loss-filters">
-            <div className="profit-loss-field">
-              <label htmlFor="profit-loss-start">Start date</label>
-              <input
-                id="profit-loss-start"
-                type="date"
-                name="startDate"
-                value={filters.startDate}
-                onChange={handleFilterChange}
-                className="form-control form-control-sm"
-                max={filters.endDate || undefined}
-              />
-            </div>
-            <div className="profit-loss-field">
-              <label htmlFor="profit-loss-end">End date</label>
-              <input
-                id="profit-loss-end"
-                type="date"
-                name="endDate"
-                value={filters.endDate}
-                onChange={handleFilterChange}
-                className="form-control form-control-sm"
-                min={filters.startDate || undefined}
-              />
-            </div>
             <div className="profit-loss-field">
               <label htmlFor="profit-loss-location">Location</label>
               <select
@@ -784,6 +593,14 @@ const ProfitLossReport = () => {
         </div>
       </header>
 
+      <div className="summary-panel">
+        <DateRangeFilter
+          startDate={filters.startDate}
+          endDate={filters.endDate}
+          onChange={handleDateRangeChange}
+        />
+      </div>
+
       {error && <div className="alert alert-danger mb-0">{error}</div>}
       {isReportEmpty && (
         <div className="alert alert-secondary mb-0">
@@ -792,52 +609,70 @@ const ProfitLossReport = () => {
       )}
 
       <section className="summary-kpis">
+        {/* Row 1 — Sales flow */}
         <article className="summary-kpi-card">
-          <div className="kpi-heading">Total revenue</div>
+          <div className="kpi-heading">Total sales</div>
           <div className="kpi-value">{formatCurrency(totalRevenue)}</div>
           <div className="kpi-subtitle text-secondary">
-            Gross sales from paid orders within the selected period
+            Total money collected from customers this period
           </div>
         </article>
         <article className="summary-kpi-card">
-          <div className="kpi-heading">Discounts applied</div>
-          <div className="kpi-value">{formatCurrency(totalDiscounts)}</div>
-          <div className="kpi-subtitle text-secondary">
-            Discount rate: {formatPercent(discountRate)} of revenue
-          </div>
-        </article>
-        <article className="summary-kpi-card">
-          <div className="kpi-heading">Cost of goods sold</div>
+          <div className="kpi-heading">Cost of items sold</div>
           <div className="kpi-value">{formatCurrency(costOfGoodsSold)}</div>
           <div className="kpi-subtitle text-secondary">
-            Share of revenue: {formatPercent(costShare)}
+            What you originally paid for the products you sold ({formatPercent(costShare)} of sales)
           </div>
         </article>
         <article className="summary-kpi-card">
-          <div className="kpi-heading">Gross profit</div>
-          <div className="kpi-value">{formatCurrency(grossProfit)}</div>
-          <div className="kpi-subtitle text-secondary">
-            Gross margin: {formatPercent(grossMargin)}
+          <div className="kpi-heading">Profit on sales</div>
+          <div
+            className={`kpi-value ${grossProfit >= 0 ? "text-success" : "text-danger"}`}
+          >
+            {formatCurrency(grossProfit)}
           </div>
-        </article>
-        <article className="summary-kpi-card">
-          <div className="kpi-heading">Operating expenses</div>
-          <div className="kpi-value">{formatCurrency(totalExpenses)}</div>
           <div className="kpi-subtitle text-secondary">
-            Expense share: {formatPercent(expenseShare)} of revenue
+            Sales minus cost of items sold — {formatPercent(grossMargin)} kept
           </div>
         </article>
         <article className="summary-kpi-card">
           <div className="kpi-heading">Net profit</div>
           <div
-            className={`kpi-value ${
-              netProfit >= 0 ? "text-success" : "text-danger"
-            }`}
+            className={`kpi-value ${netProfit >= 0 ? "text-success" : "text-danger"}`}
           >
             {formatCurrency(netProfit)}
           </div>
           <div className="kpi-subtitle text-secondary">
-            Net margin: {formatPercent(netMargin)}
+            What you actually made after all costs — {formatPercent(netMargin)} of sales
+          </div>
+        </article>
+        {/* Row 2 — Stock & costs */}
+        <article className="summary-kpi-card">
+          <div className="kpi-heading">New stock bought</div>
+          <div className="kpi-value">{formatCurrency(totalInventoryPurchases)}</div>
+          <div className="kpi-subtitle text-secondary">
+            Total spent buying stock from suppliers in this period
+          </div>
+        </article>
+        <article className="summary-kpi-card">
+          <div className="kpi-heading">Stock on shelf</div>
+          <div className="kpi-value">{formatCurrency(currentInventoryValue)}</div>
+          <div className="kpi-subtitle text-secondary">
+            Value of products still sitting unsold in your store
+          </div>
+        </article>
+        <article className="summary-kpi-card">
+          <div className="kpi-heading">Discounts given</div>
+          <div className="kpi-value">{formatCurrency(totalDiscounts)}</div>
+          <div className="kpi-subtitle text-secondary">
+            Total price reductions given to customers ({formatPercent(discountRate)} of sales)
+          </div>
+        </article>
+        <article className="summary-kpi-card">
+          <div className="kpi-heading">Running expenses</div>
+          <div className="kpi-value">{formatCurrency(totalExpenses)}</div>
+          <div className="kpi-subtitle text-secondary">
+            Other business costs such as rent, utilities, and supplies
           </div>
         </article>
       </section>
@@ -845,36 +680,37 @@ const ProfitLossReport = () => {
       <section className="summary-panel">
         <div className="panel-header">
           <div>
-            <h6 className="mb-0">Profitability insights</h6>
+            <h6 className="mb-0">Business summary</h6>
             <span className="text-secondary small">
-              Ratios and highlights derived from aggregated totals
+              Key highlights for the selected period at a glance
             </span>
           </div>
         </div>
         <ul className="profit-loss-insights">
           <li>
-            <strong>Gross margin:</strong> {formatPercent(grossMargin)} of
-            revenue after accounting for cost of goods.
+            <strong>For every $1 you sold,</strong> you kept{" "}
+            {formatPercent(grossMargin)} after paying for the items — and{" "}
+            {formatPercent(netMargin)} after all other costs.
           </li>
           <li>
-            <strong>Net margin:</strong> {formatPercent(netMargin)} retained
-            after expenses.
+            <strong>New stock purchased:</strong>{" "}
+            {formatCurrency(totalInventoryPurchases)} spent buying from suppliers
+            this period.{" "}
+            {currentInventoryValue > 0
+              ? `You still have ${formatCurrency(currentInventoryValue)} worth of unsold stock on your shelves.`
+              : "All purchased stock has been sold."}
           </li>
           <li>
-            <strong>Top product:</strong>{" "}
+            <strong>Best-selling product:</strong>{" "}
             {topProduct
-              ? `${topProduct.productName} (${formatCurrency(
-                  topProduct.grossProfit
-                )} gross profit)`
-              : "No product sales recorded."}
+              ? `${topProduct.productName} — earned ${formatCurrency(topProduct.grossProfit)} in profit`
+              : "No product sales recorded yet."}
           </li>
           <li>
-            <strong>Top expense category:</strong>{" "}
+            <strong>Biggest expense:</strong>{" "}
             {topExpense
-              ? `${formatEnumLabel(topExpense.category)} (${formatCurrency(
-                  topExpense.totalAmount
-                )})`
-              : "No expenses recorded."}
+              ? `${formatEnumLabel(topExpense.category)} at ${formatCurrency(topExpense.totalAmount)}`
+              : "No running expenses recorded yet."}
           </li>
         </ul>
       </section>
@@ -906,12 +742,18 @@ const ProfitLossReport = () => {
                   <th scope="col" className="text-end">
                     Gross profit
                   </th>
+                  <th scope="col" className="text-end">
+                    In stock
+                  </th>
+                  <th scope="col" className="text-end">
+                    Stock value
+                  </th>
                 </tr>
               </thead>
               <tbody>
                 {productBreakdown.length === 0 && (
                   <tr>
-                    <td colSpan={5} className="profit-loss-empty">
+                    <td colSpan={7} className="profit-loss-empty">
                       No product sales were recorded for this period.
                     </td>
                   </tr>
@@ -922,20 +764,22 @@ const ProfitLossReport = () => {
                     <td className="text-end">
                       {formatNumber(product.quantitySold)}
                     </td>
-                    <td className="text-end">
-                      {formatCurrency(product.revenue)}
-                    </td>
+                    <td className="text-end">{formatCurrency(product.revenue)}</td>
                     <td className="text-end">
                       {formatCurrency(product.costOfGoods)}
                     </td>
                     <td
                       className={`text-end ${
-                        product.grossProfit >= 0
-                          ? "text-success"
-                          : "text-danger"
+                        product.grossProfit >= 0 ? "text-success" : "text-danger"
                       }`}
                     >
                       {formatCurrency(product.grossProfit)}
+                    </td>
+                    <td className="text-end">
+                      {formatNumber(product.quantityInStock ?? 0)}
+                    </td>
+                    <td className="text-end text-secondary">
+                      {formatCurrency(product.inventoryValue ?? 0)}
                     </td>
                   </tr>
                 ))}
@@ -985,9 +829,63 @@ const ProfitLossReport = () => {
                       <td className="text-end">
                         {formatCurrency(entry.totalAmount)}
                       </td>
+                      <td className="text-end">{formatPercent(share)}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </article>
+
+        <article className="summary-panel profit-loss-table">
+          <div className="panel-header">
+            <div>
+              <h6 className="mb-0">Purchases by supplier</h6>
+              <span className="text-secondary small">
+                Stock purchased from each supplier in this period
+              </span>
+            </div>
+          </div>
+          <div className="table-responsive">
+            <table className="table table-hover align-middle mb-0">
+              <thead className="table-light">
+                <tr>
+                  <th scope="col">Supplier</th>
+                  <th scope="col" className="text-end">
+                    Orders
+                  </th>
+                  <th scope="col" className="text-end">
+                    Total spent
+                  </th>
+                  <th scope="col" className="text-end">
+                    Share of purchases
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {purchasesBySupplier.length === 0 && (
+                  <tr>
+                    <td colSpan={4} className="profit-loss-empty">
+                      No purchase orders were placed in this period.
+                    </td>
+                  </tr>
+                )}
+                {purchasesBySupplier.map((entry) => {
+                  const share =
+                    totalInventoryPurchases === 0
+                      ? 0
+                      : Number(entry.totalAmount ?? 0) / totalInventoryPurchases;
+                  return (
+                    <tr key={entry.supplierName}>
+                      <td>{entry.supplierName}</td>
                       <td className="text-end">
-                        {formatPercent(share)}
+                        {formatNumber(entry.orderCount)}
                       </td>
+                      <td className="text-end">
+                        {formatCurrency(entry.totalAmount)}
+                      </td>
+                      <td className="text-end">{formatPercent(share)}</td>
                     </tr>
                   );
                 })}
@@ -1015,9 +913,7 @@ const Reports = () => {
           <button
             key={tab.key}
             type="button"
-            className={`reports-tab ${
-              activeTab === tab.key ? "active" : ""
-            }`}
+            className={`reports-tab ${activeTab === tab.key ? "active" : ""}`}
             onClick={() => setActiveTab(tab.key)}
             aria-pressed={activeTab === tab.key}
           >
@@ -1025,11 +921,7 @@ const Reports = () => {
           </button>
         ))}
       </div>
-      {activeTab === TAB_KEYS.PROFIT_LOSS ? (
-        <ProfitLossReport />
-      ) : (
-        <SalesSummary />
-      )}
+      {activeTab === TAB_KEYS.PROFIT_LOSS ? <ProfitLossReport /> : <SalesSummary />}
     </div>
   );
 };

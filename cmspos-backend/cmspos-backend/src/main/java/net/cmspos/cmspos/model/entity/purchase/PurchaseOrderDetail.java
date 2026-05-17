@@ -39,6 +39,9 @@ public class PurchaseOrderDetail {
     @Column(nullable = false)
     private Integer quantity;
 
+    @Column(name = "received_qty", nullable = false)
+    private Integer receivedQty;
+
     @Column(nullable = false)
     private Double price;
 
@@ -47,6 +50,9 @@ public class PurchaseOrderDetail {
     private void ensureDefaults() {
         if (quantity == null) {
             quantity = 0;
+        }
+        if (receivedQty == null) {
+            receivedQty = 0;
         }
         if (price == null) {
             price = 0.0;

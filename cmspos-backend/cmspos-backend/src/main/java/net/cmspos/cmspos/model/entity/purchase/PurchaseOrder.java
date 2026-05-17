@@ -13,6 +13,7 @@ import lombok.NoArgsConstructor;
 import lombok.ToString;
 import net.cmspos.cmspos.model.entity.Location;
 import net.cmspos.cmspos.model.entity.Supplier;
+import net.cmspos.cmspos.model.enums.PurchaseOrderStatus;
 
 @Entity
 @Table(name = "purchase_order")
@@ -28,8 +29,8 @@ public class PurchaseOrder {
     @Column(name = "po_id")
     private Long purchaseOrderId;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "supplier_id", foreignKey = @ForeignKey(name = "fk_purchase_order_supplier"))
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "supplier_id", nullable = false, foreignKey = @ForeignKey(name = "fk_purchase_order_supplier"))
     @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
     private Supplier supplier;
 
@@ -44,6 +45,13 @@ public class PurchaseOrder {
     @Column(name = "order_date", nullable = false, columnDefinition = "TIMESTAMP DEFAULT CURRENT_TIMESTAMP")
     private LocalDateTime orderDate;
 
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20)
+    private PurchaseOrderStatus status = PurchaseOrderStatus.OPEN;
+
+    @Column(name = "received_at")
+    private LocalDateTime receivedAt;
+
     @ToString.Exclude
     @EqualsAndHashCode.Exclude
     @Builder.Default
@@ -57,6 +65,9 @@ public class PurchaseOrder {
         }
         if (total == null) {
             total = 0.0;
+        }
+        if (status == null) {
+            status = PurchaseOrderStatus.OPEN;
         }
     }
 }

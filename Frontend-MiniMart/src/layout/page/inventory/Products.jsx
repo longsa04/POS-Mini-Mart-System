@@ -7,6 +7,8 @@ import {
   deleteProduct,
 } from "../../../api/products";
 import { fetchCategories } from "../../../api/categories";
+import { fetchSuppliers } from "../../../api/suppliers";
+import { fetchPreferredSupplier, setPreferredSupplier } from "../../../api/productSuppliers";
 
 const priceFormatter = new Intl.NumberFormat("en-US", {
   style: "currency",
@@ -20,12 +22,16 @@ const emptyForm = {
   price: "",
   costPrice: "",
   categoryId: "",
+  preferredSupplierId: "",
+  supplierCostPrice: "",
 };
 
 const Products = () => {
   const navigate = useNavigate();
   const [products, setProducts] = useState([]);
   const [categories, setCategories] = useState([]);
+  const [suppliers, setSuppliers] = useState([]);
+  const [preferredSuppliers, setPreferredSuppliers] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -41,13 +47,16 @@ const Products = () => {
     const loadInitialData = async () => {
       try {
         setLoading(true);
-        const [loadedProducts, loadedCategories] = await Promise.all([
+        const [loadedProducts, loadedCategories, loadedSuppliers] = await Promise.all([
           fetchProductsApi({ signal: controller.signal }),
           fetchCategories({ signal: controller.signal }),
+          fetchSuppliers({ signal: controller.signal }),
         ]);
 
         setProducts(Array.isArray(loadedProducts) ? loadedProducts : []);
         setCategories(Array.isArray(loadedCategories) ? loadedCategories : []);
+        setSuppliers(Array.isArray(loadedSuppliers) ? loadedSuppliers : []);
+        setPreferredSuppliers({});
         setError(null);
       } catch (fetchError) {
         if (fetchError.name === "AbortError") {
@@ -56,6 +65,7 @@ const Products = () => {
         setError(fetchError.message || "Unable to load products");
         setProducts([]);
         setCategories([]);
+        setSuppliers([]);
       } finally {
         setLoading(false);
       }
@@ -65,12 +75,143 @@ const Products = () => {
     return () => controller.abort();
   }, []);
 
+  useEffect(() => {
+    if (!products.length) {
+      setPreferredSuppliers({});
+      return;
+    }
+
+    const controller = new AbortController();
+    const loadPreferredSuppliers = async () => {
+      try {
+        const entries = await Promise.all(
+          products.map(async (product) => {
+            const productId = product?.productId ?? product?.id;
+            if (!productId) return null;
+            const preferred = await fetchPreferredSupplier({
+              productId,
+              signal: controller.signal,
+            });
+            return preferred
+              ? [
+                  productId,
+                  {
+                    id: preferred.supplierId ?? preferred.id ?? null,
+                    name: preferred.supplierName ?? preferred.name ?? "-",
+                  },
+                ]
+              : [productId, null];
+          })
+        );
+        if (controller.signal.aborted) return;
+        const nextMap = entries.reduce((acc, entry) => {
+          if (entry) {
+            acc[entry[0]] = entry[1];
+          }
+          return acc;
+        }, {});
+        setPreferredSuppliers(nextMap);
+      } catch (fetchError) {
+        if (fetchError.name === "AbortError") {
+          return;
+        }
+        setPreferredSuppliers({});
+      }
+    };
+
+    loadPreferredSuppliers();
+    return () => controller.abort();
+  }, [products]);
+
   const categoryOptions = useMemo(() => {
     return categories.map((category) => ({
       id: category.id ?? category.categoryId,
       name: category.name,
     }));
   }, [categories]);
+
+  const supplierOptions = useMemo(() => {
+    return suppliers.map((supplier) => ({
+      id: supplier.supplierId ?? supplier.id,
+      name: supplier.name ?? `Supplier ${supplier.supplierId ?? supplier.id ?? ""}`,
+    }));
+  }, [suppliers]);
+
+  const categorySupplierStats = useMemo(() => {
+    const stats = new Map();
+    products.forEach((product) => {
+      const categoryId =
+        product?.category?.id ??
+        product?.category?.categoryId ??
+        product?.categoryId ??
+        null;
+      const productId = product?.productId ?? product?.id;
+      if (categoryId == null || !productId) return;
+
+      const supplierEntry = preferredSuppliers[productId];
+      const supplierId = supplierEntry?.id ?? null;
+      if (supplierId == null) return;
+
+      const categoryKey = String(categoryId);
+      if (!stats.has(categoryKey)) {
+        stats.set(categoryKey, new Map());
+      }
+      const supplierMap = stats.get(categoryKey);
+      supplierMap.set(
+        supplierId,
+        (supplierMap.get(supplierId) ?? 0) + 1
+      );
+    });
+    return stats;
+  }, [products, preferredSuppliers]);
+
+  const supplierCategoryStats = useMemo(() => {
+    const stats = new Map();
+    products.forEach((product) => {
+      const categoryId =
+        product?.category?.id ??
+        product?.category?.categoryId ??
+        product?.categoryId ??
+        null;
+      const productId = product?.productId ?? product?.id;
+      if (categoryId == null || !productId) return;
+
+      const supplierEntry = preferredSuppliers[productId];
+      const supplierId = supplierEntry?.id ?? null;
+      if (supplierId == null) return;
+
+      const supplierKey = String(supplierId);
+      if (!stats.has(supplierKey)) {
+        stats.set(supplierKey, new Map());
+      }
+      const categoryMap = stats.get(supplierKey);
+      categoryMap.set(
+        String(categoryId),
+        (categoryMap.get(String(categoryId)) ?? 0) + 1
+      );
+    });
+    return stats;
+  }, [products, preferredSuppliers]);
+
+  const getTopSupplierForCategory = (categoryId) => {
+    if (!categoryId) return "";
+    const categoryMap = categorySupplierStats.get(String(categoryId));
+    if (!categoryMap) return "";
+    const [topSupplierId] = Array.from(categoryMap.entries()).sort(
+      (a, b) => b[1] - a[1]
+    )[0] ?? [];
+    return topSupplierId != null ? String(topSupplierId) : "";
+  };
+
+  const getTopCategoryForSupplier = (supplierId) => {
+    if (!supplierId) return "";
+    const supplierMap = supplierCategoryStats.get(String(supplierId));
+    if (!supplierMap) return "";
+    const [topCategoryId] = Array.from(supplierMap.entries()).sort(
+      (a, b) => b[1] - a[1]
+    )[0] ?? [];
+    return topCategoryId != null ? String(topCategoryId) : "";
+  };
 
   const resetForm = () => {
     setFormValues(emptyForm);
@@ -80,10 +221,32 @@ const Products = () => {
 
   const handleInputChange = (event) => {
     const { name, value } = event.target;
-    setFormValues((previous) => ({
-      ...previous,
-      [name]: value,
-    }));
+    setFormValues((previous) => {
+      if (name === "categoryId") {
+        const recommendedSupplierId = getTopSupplierForCategory(value);
+        return {
+          ...previous,
+          categoryId: value,
+          preferredSupplierId: recommendedSupplierId || "",
+          ...(recommendedSupplierId ? null : { supplierCostPrice: "" }),
+        };
+      }
+
+      if (name === "preferredSupplierId") {
+        const recommendedCategoryId = getTopCategoryForSupplier(value);
+        return {
+          ...previous,
+          preferredSupplierId: value,
+          categoryId: recommendedCategoryId || previous.categoryId,
+          ...(value === "" ? { supplierCostPrice: "" } : null),
+        };
+      }
+
+      return {
+        ...previous,
+        [name]: value,
+      };
+    });
   };
 
   const validateForm = () => {
@@ -111,6 +274,13 @@ const Products = () => {
 
     if (!formValues.categoryId) {
       return "Please choose a category.";
+    }
+
+    if (formValues.preferredSupplierId) {
+      const supplierCost = Number(formValues.supplierCostPrice);
+      if (Number.isNaN(supplierCost) || supplierCost < 0) {
+        return "Supplier cost must be zero or greater.";
+      }
     }
 
     return null;
@@ -145,12 +315,26 @@ const Products = () => {
 
     try {
       setSubmitting(true);
+      let savedProduct = null;
       if (formMode === "create") {
-        await createProduct(payload);
+        savedProduct = await createProduct(payload);
         setFeedback("Product successfully created.");
       } else {
-        await updateProduct(formValues.productId, payload);
+        savedProduct = await updateProduct(formValues.productId, payload);
         setFeedback("Product updated.");
+      }
+      const productId = savedProduct?.productId ?? formValues.productId;
+      if (productId) {
+        const supplierPayload = formValues.preferredSupplierId
+          ? {
+              supplierId: Number(formValues.preferredSupplierId),
+              costPrice:
+                formValues.supplierCostPrice === ""
+                  ? 0
+                  : Number(formValues.supplierCostPrice),
+            }
+          : null;
+        await setPreferredSupplier(productId, supplierPayload);
       }
       await refreshProducts();
       resetForm();
@@ -161,10 +345,11 @@ const Products = () => {
     }
   };
 
-  const handleEdit = (product) => {
+  const handleEdit = async (product) => {
+    const productId = product.productId ?? product.id;
     setFormMode("edit");
     setFormValues({
-      productId: product.productId ?? product.id,
+      productId,
       name: product.name ?? "",
       sku: product.sku ?? "",
       price: product.price != null ? String(product.price) : "",
@@ -173,9 +358,25 @@ const Products = () => {
       categoryId: product.category?.id ?? product.category?.categoryId
         ? String(product.category.id ?? product.category.categoryId)
         : "",
+      preferredSupplierId: "",
+      supplierCostPrice: "",
     });
     setFormError(null);
     setFeedback(null);
+
+    try {
+      const preferred = await fetchPreferredSupplier({ productId });
+      if (preferred) {
+        setFormValues((previous) => ({
+          ...previous,
+          preferredSupplierId: preferred.supplierId != null ? String(preferred.supplierId) : "",
+          supplierCostPrice:
+            preferred.costPrice != null ? String(preferred.costPrice) : "",
+        }));
+      }
+    } catch (fetchError) {
+      setFormError(fetchError.message || "Unable to load preferred supplier.");
+    }
   };
 
   const handleDelete = async (product) => {
@@ -211,7 +412,7 @@ const Products = () => {
     if (loading) {
       return (
         <tr>
-          <td colSpan={6} className="text-center text-secondary py-4">
+          <td colSpan={7} className="text-center text-secondary py-4">
             Loading products...
           </td>
         </tr>
@@ -221,7 +422,7 @@ const Products = () => {
     if (error) {
       return (
         <tr>
-          <td colSpan={6} className="text-center text-danger py-4">
+          <td colSpan={7} className="text-center text-danger py-4">
             {error}
           </td>
         </tr>
@@ -231,7 +432,7 @@ const Products = () => {
     if (!hasProducts) {
       return (
         <tr>
-          <td colSpan={6} className="text-center text-secondary py-4">
+          <td colSpan={7} className="text-center text-secondary py-4">
             No products found.
           </td>
         </tr>
@@ -243,6 +444,7 @@ const Products = () => {
         <td>{product.name ?? "Unnamed"}</td>
         <td>{product.sku ?? "-"}</td>
         <td>{product.category?.name ?? "Unassigned"}</td>
+        <td>{preferredSuppliers[product.productId ?? product.id]?.name ?? "-"}</td>
         <td>
           {product.costPrice != null
             ? priceFormatter.format(product.costPrice)
@@ -306,14 +508,14 @@ const Products = () => {
               role="alert"
             >
               <span>
-                No categories yet. Create one in Category Manager before adding products.
+                No categories yet. Create one in Categories before adding products.
               </span>
               <button
                 type="button"
                 className="btn btn-sm btn-outline-secondary"
                 onClick={() => navigate("/inventory/categories")}
               >
-                Open Category Manager
+                Open Categories
               </button>
             </div>
           )}
@@ -372,7 +574,16 @@ const Products = () => {
               />
             </div>
             <div className="col-md-3">
-              <label className="form-label">Category</label>
+              <div className="d-flex justify-content-between align-items-center">
+                <label className="form-label mb-0">Category</label>
+                <button
+                  type="button"
+                  className="btn btn-link btn-sm p-0"
+                  onClick={() => navigate("/inventory/categories")}
+                >
+                  Manage
+                </button>
+              </div>
               <select
                 className="form-select"
                 name="categoryId"
@@ -388,6 +599,36 @@ const Products = () => {
                   </option>
                 ))}
               </select>
+            </div>
+            <div className="col-md-4">
+              <label className="form-label">Preferred Supplier</label>
+              <select
+                className="form-select"
+                name="preferredSupplierId"
+                value={formValues.preferredSupplierId}
+                onChange={handleInputChange}
+                disabled={submitting}
+              >
+                <option value="">None</option>
+                {supplierOptions.map((supplier) => (
+                  <option key={supplier.id} value={supplier.id}>
+                    {supplier.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="col-md-2">
+              <label className="form-label">Supplier Cost</label>
+              <input
+                type="number"
+                step="0.01"
+                min="0"
+                className="form-control"
+                name="supplierCostPrice"
+                value={formValues.supplierCostPrice}
+                onChange={handleInputChange}
+                disabled={submitting || !formValues.preferredSupplierId}
+              />
             </div>
 
             <div className="col-12 d-flex gap-2">
@@ -421,6 +662,7 @@ const Products = () => {
                 <th>Product</th>
                 <th>SKU</th>
                 <th>Category</th>
+                <th>Supplier</th>
                 <th>Cost Price</th>
                 <th>Price</th>
                 <th style={{ width: "160px" }}>Actions</th>

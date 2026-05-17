@@ -1,0 +1,278 @@
+.branch-settings-page {
+  display: flex;
+  flex-direction: column;
+  gap: 1.75rem;
+  position: relative;
+  padding-bottom: 2rem;
+}
+
+.branch-settings-page::before {
+  content: "";
+  position: absolute;
+  top: -140px;
+  right: -160px;
+  width: 320px;
+  height: 320px;
+  background: radial-gradient(circle, rgba(31, 122, 77, 0.18), transparent 70%);
+  filter: blur(10px);
+  opacity: 0.8;
+  pointer-events: none;
+}
+
+.branch-settings-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.branch-settings-eyebrow {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  color: #6b7280;
+  font-weight: 600;
+}
+
+.branch-settings-header h2 {
+  margin: 0.35rem 0 0.4rem;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.branch-settings-subtitle {
+  margin: 0;
+  max-width: 560px;
+  color: #64748b;
+  font-size: 0.95rem;
+}
+
+.branch-settings-status {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.4rem;
+}
+
+.status-pill {
+  background: var(--mm-primary-soft);
+  color: var(--mm-primary);
+  border-radius: 999px;
+  padding: 0.35rem 0.9rem;
+  font-weight: 600;
+  font-size: 0.8rem;
+  letter-spacing: 0.04em;
+}
+
+.status-meta {
+  font-size: 0.82rem;
+  color: #6b7280;
+}
+
+.branch-settings-hero {
+  display: grid;
+  grid-template-columns: minmax(260px, 1.2fr) minmax(240px, 0.9fr);
+  gap: 1.5rem;
+  padding: 1.8rem;
+  border-radius: 22px;
+  background: linear-gradient(135deg, #ffffff 0%, #f6faf7 100%);
+  box-shadow: var(--mm-card-shadow);
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  position: relative;
+  overflow: hidden;
+}
+
+.branch-settings-hero::after {
+  content: "";
+  position: absolute;
+  bottom: -120px;
+  left: -100px;
+  width: 220px;
+  height: 220px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(31, 122, 77, 0.12), transparent 70%);
+  pointer-events: none;
+}
+
+.hero-content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.hero-badge {
+  align-self: flex-start;
+  background: rgba(15, 23, 42, 0.08);
+  color: #1f2937;
+  padding: 0.3rem 0.7rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  font-weight: 600;
+}
+
+.hero-content h3 {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.hero-content p {
+  margin: 0;
+  color: #64748b;
+  max-width: 420px;
+}
+
+.hero-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.hero-tags span {
+  background: rgba(31, 122, 77, 0.12);
+  color: #14532d;
+  padding: 0.35rem 0.75rem;
+  border-radius: 999px;
+  font-size: 0.82rem;
+  font-weight: 500;
+}
+
+.hero-card {
+  background: #ffffff;
+  border-radius: 16px;
+  padding: 1.25rem 1.35rem;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+  box-shadow: 0 12px 24px rgba(15, 23, 42, 0.08);
+}
+
+.hero-card-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 1rem;
+  color: #475569;
+  font-size: 0.9rem;
+}
+
+.hero-card-row strong {
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.branch-settings-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 1.5rem;
+}
+
+.branch-settings-card {
+  background: var(--mm-surface);
+  border-radius: 18px;
+  padding: 1.4rem 1.5rem;
+  box-shadow: var(--mm-card-shadow);
+  display: flex;
+  flex-direction: column;
+  gap: 1.2rem;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+}
+
+.branch-settings-card h4 {
+  margin: 0;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.card-subtitle {
+  margin: 0.4rem 0 0;
+  color: #64748b;
+  font-size: 0.9rem;
+}
+
+.settings-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.settings-item {
+  display: grid;
+  grid-template-columns: minmax(130px, 1fr) 2fr;
+  gap: 0.75rem;
+  padding: 0.6rem 0.75rem;
+  background: rgba(15, 23, 42, 0.04);
+  border-radius: 12px;
+}
+
+.settings-label {
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #6b7280;
+}
+
+.settings-value {
+  font-weight: 600;
+  color: #0f172a;
+  justify-self: end;
+}
+
+.branch-settings-note {
+  background: linear-gradient(160deg, #ffffff 0%, #f9fafb 100%);
+}
+
+.note-list {
+  margin: 0;
+  padding-left: 1rem;
+  color: #475569;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  font-size: 0.92rem;
+}
+
+.note-intro {
+  margin: 0;
+  font-weight: 600;
+  color: #0f172a;
+  font-size: 0.9rem;
+}
+
+@media (max-width: 900px) {
+  .branch-settings-hero {
+    grid-template-columns: 1fr;
+  }
+
+  .branch-settings-status {
+    align-items: flex-start;
+  }
+
+  .hero-card {
+    width: 100%;
+  }
+}
+
+@media (max-width: 640px) {
+  .branch-settings-page {
+    gap: 1.4rem;
+  }
+
+  .branch-settings-hero {
+    padding: 1.4rem;
+  }
+
+  .settings-item {
+    grid-template-columns: 1fr;
+  }
+
+  .settings-value {
+    justify-self: start;
+  }
+}

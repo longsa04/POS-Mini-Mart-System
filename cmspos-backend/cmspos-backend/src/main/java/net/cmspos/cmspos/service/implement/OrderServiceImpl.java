@@ -36,9 +36,11 @@ import net.cmspos.cmspos.repository.CustomerRepository;
 import net.cmspos.cmspos.repository.LocationRepository;
 import net.cmspos.cmspos.repository.ProductRepository;
 import net.cmspos.cmspos.repository.UserRepository;
+import net.cmspos.cmspos.repository.inventory.StockBatchRepository;
 import net.cmspos.cmspos.repository.inventory.StockMovementRepository;
 import net.cmspos.cmspos.repository.inventory.StockRepository;
 import net.cmspos.cmspos.repository.order.OrderRepository;
+import net.cmspos.cmspos.service.InventoryService;
 import net.cmspos.cmspos.service.OrderService;
 import net.cmspos.cmspos.service.ReceiptService;
 import org.springframework.beans.factory.annotation.Value;
@@ -57,6 +59,8 @@ public class OrderServiceImpl implements OrderService {
     private final ProductRepository productRepository;
     private final StockRepository stockRepository;
     private final StockMovementRepository stockMovementRepository;
+    private final StockBatchRepository stockBatchRepository;
+    private final InventoryService inventoryService;
     private final ReceiptService receiptService;
 
     @Value("${pos.tax.rate:0.12}")
@@ -260,8 +264,13 @@ public class OrderServiceImpl implements OrderService {
             int currentQuantity = Optional.ofNullable(stock.getQuantity()).orElse(0);
             if (currentQuantity < quantity) {
                 throw new BadRequestException("Insufficient stock for product " + product.getName()
-                        + " at location " + order.getLocation().getName());
+                        + " at location " + order.getLocation().getName()
+                        + ". Available: " + currentQuantity + ", requested: " + quantity);
             }
+
+            // FIFO: deduct from oldest batches first
+            ((InventoryServiceImpl) inventoryService).deductFifoBatches(
+                    product.getProductId(), order.getLocation().getLocationId(), quantity);
 
             stock.setQuantity(currentQuantity - quantity);
             stocksToUpdate.put(stock.getStockId(), stock);
@@ -307,6 +316,10 @@ public class OrderServiceImpl implements OrderService {
                 continue;
             }
 
+            // FIFO restore: put stock back into the most recent batch
+            ((InventoryServiceImpl) inventoryService).restoreToLatestBatch(
+                    product.getProductId(), order.getLocation().getLocationId(), quantity);
+
             int currentQuantity = Optional.ofNullable(stock.getQuantity()).orElse(0);
             stock.setQuantity(currentQuantity + quantity);
 
@@ -328,6 +341,9 @@ public class OrderServiceImpl implements OrderService {
                     .build());
         }
 
+        if (!stocksToUpdate.isEmpty()) {
+            stockRepository.saveAll(stocksToUpdate.values());
+        }
         if (!reversals.isEmpty()) {
             stockMovementRepository.saveAll(reversals);
         }

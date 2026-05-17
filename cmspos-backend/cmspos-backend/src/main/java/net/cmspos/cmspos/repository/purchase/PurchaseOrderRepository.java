@@ -18,4 +18,6 @@ public interface PurchaseOrderRepository extends JpaRepository<PurchaseOrder, Lo
 
     @EntityGraph(attributePaths = {"supplier", "location", "details", "details.product"})
     Optional<PurchaseOrder> findByPurchaseOrderId(Long purchaseOrderId);
+
+    boolean existsBySupplier_SupplierId(Long supplierId);
 }

@@ -21,7 +21,7 @@ export const buildMenuSections = (role, { pendingOrders = 0, lowStockCount = 0 }
           items: [
             {
               label: "POS",
-              icon: "fa-solid fa-cash-register",
+              icon: "fa-solid fa-fw fa-cash-register",
               path: "/pos",
             },
           ],
@@ -34,10 +34,10 @@ export const buildMenuSections = (role, { pendingOrders = 0, lowStockCount = 0 }
           title: "Operations",
           defaultOpen: true,
           items: [
-            { label: "Dashboard", icon: "fa-solid fa-gauge", path: "/" },
+            { label: "Dashboard", icon: "fa-solid fa-fw fa-gauge", path: "/" },
             {
               label: "POS",
-              icon: "fa-solid fa-cash-register",
+              icon: "fa-solid fa-fw fa-cash-register",
               path: "/pos",
             },
           ],
@@ -48,8 +48,19 @@ export const buildMenuSections = (role, { pendingOrders = 0, lowStockCount = 0 }
           items: [
             {
               label: "Employees",
-              icon: "fa-solid fa-user-group",
+              icon: "fa-solid fa-fw fa-user-group",
               path: "/people/employees",
+            },
+          ],
+        },
+        {
+          id: "finance",
+          title: "Finance",
+          items: [
+            {
+              label: "Expenses",
+              icon: "fa-solid fa-fw fa-file-invoice-dollar",
+              path: "/finance/expenses",
             },
           ],
         },
@@ -60,13 +71,13 @@ export const buildMenuSections = (role, { pendingOrders = 0, lowStockCount = 0 }
           items: [
             {
               label: "Sales Summary",
-              icon: "fa-solid fa-chart-line",
+              icon: "fa-solid fa-fw fa-chart-line",
               path: "/reports/sales",
               badge: pendingOrders ? `${pendingOrders}` : null,
             },
             {
               label: "Activity Log",
-              icon: "fa-solid fa-clipboard-list",
+              icon: "fa-solid fa-fw fa-clipboard-list",
               path: "/reports/activity",
             },
           ],
@@ -80,55 +91,38 @@ export const buildMenuSections = (role, { pendingOrders = 0, lowStockCount = 0 }
           title: "Operations",
           defaultOpen: true,
           items: [
-            { label: "Dashboard", icon: "fa-solid fa-gauge", path: "/" },
+            { label: "Dashboard", icon: "fa-solid fa-fw fa-gauge", path: "/" },
             {
               label: "POS",
-              icon: "fa-solid fa-cash-register",
+              icon: "fa-solid fa-fw fa-cash-register",
               path: "/pos",
             },
           ],
         },
         {
           id: "inventory",
-          title: "Inventory Control",
+          title: "Inventory",
           headerBadge: lowStockCount ? `${lowStockCount}` : null,
           items: [
             {
               label: "Inventory Overview",
-              icon: "fa-solid fa-warehouse",
+              icon: "fa-solid fa-fw fa-warehouse",
               path: "/inventory",
-              badge: lowStockCount ? `${lowStockCount}` : null,
+            },
+            {
+              label: "Stock Levels",
+              icon: "fa-solid fa-fw fa-layer-group",
+              path: "/inventory/stock-levels",
             },
             {
               label: "Product Catalog",
-              icon: "fa-solid fa-box-open",
+              icon: "fa-solid fa-fw fa-box-open",
               path: "/inventory/products",
             },
             {
-              label: "Category Manager",
-              icon: "fa-solid fa-tags",
+              label: "Categories",
+              icon: "fa-solid fa-fw fa-tags",
               path: "/inventory/categories",
-            },
-            {
-              label: "Stock Tracker",
-              icon: "fa-solid fa-layer-group",
-              path: "/inventory/stock-levels",
-            },
-          ],
-        },
-        {
-          id: "people",
-          title: "People",
-          items: [
-            {
-              label: "Employees",
-              icon: "fa-solid fa-user-group",
-              path: "/people/employees",
-            },
-            {
-              label: "User & Roles",
-              icon: "fa-solid fa-id-badge",
-              path: "/people/users",
             },
           ],
         },
@@ -138,13 +132,40 @@ export const buildMenuSections = (role, { pendingOrders = 0, lowStockCount = 0 }
           items: [
             {
               label: "Suppliers",
-              icon: "fa-solid fa-truck-field",
+              icon: "fa-solid fa-fw fa-truck-field",
               path: "/purchasing/suppliers",
             },
             {
               label: "Purchase Orders",
-              icon: "fa-solid fa-file-invoice",
+              icon: "fa-solid fa-fw fa-file-invoice",
               path: "/purchasing/purchase-orders",
+            },
+          ],
+        },
+        {
+          id: "people",
+          title: "People",
+          items: [
+            {
+              label: "Employees",
+              icon: "fa-solid fa-fw fa-user-group",
+              path: "/people/employees",
+            },
+            {
+              label: "User & Roles",
+              icon: "fa-solid fa-fw fa-id-badge",
+              path: "/people/users",
+            },
+          ],
+        },
+        {
+          id: "finance",
+          title: "Finance",
+          items: [
+            {
+              label: "Expenses",
+              icon: "fa-solid fa-fw fa-file-invoice-dollar",
+              path: "/finance/expenses",
             },
           ],
         },
@@ -155,13 +176,13 @@ export const buildMenuSections = (role, { pendingOrders = 0, lowStockCount = 0 }
           items: [
             {
               label: "Sales Summary",
-              icon: "fa-solid fa-chart-line",
+              icon: "fa-solid fa-fw fa-chart-line",
               path: "/reports/sales",
               badge: pendingOrders ? `${pendingOrders}` : null,
             },
             {
               label: "Activity Log",
-              icon: "fa-solid fa-clipboard-list",
+              icon: "fa-solid fa-fw fa-clipboard-list",
               path: "/reports/activity",
             },
           ],
@@ -172,12 +193,12 @@ export const buildMenuSections = (role, { pendingOrders = 0, lowStockCount = 0 }
           items: [
             {
               label: "Branch Details",
-              icon: "fa-solid fa-shop",
+              icon: "fa-solid fa-fw fa-shop",
               path: "/settings/branch",
             },
             {
               label: "Receipt Branding",
-              icon: "fa-solid fa-receipt",
+              icon: "fa-solid fa-fw fa-receipt",
               path: "/settings/receipts",
             },
           ],

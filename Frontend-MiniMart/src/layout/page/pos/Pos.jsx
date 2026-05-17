@@ -1,7 +1,7 @@
 import "./pos.css";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import PrintInvoice from "./PrintInvoice";
-import { fetchProducts } from "../../../api/products";
+import { fetchInStockProducts } from "../../../api/products";
 import { createOrder } from "../../../api/orders";
 import posConfig from "../../../config/posConfig";
 import { useAuth } from "../../../context/AuthContext";
@@ -20,24 +20,16 @@ const buildProductLookup = (list) => {
   list.forEach((product) => {
     if (!product) return;
     const sku = product.sku ?? product.barcode;
-    if (sku) {
-      lookup[sku.toLowerCase()] = product;
-    }
-    if (product.name) {
-      lookup[product.name.toLowerCase()] = product;
-    }
+    if (sku) lookup[sku.toLowerCase()] = product;
+    if (product.name) lookup[product.name.toLowerCase()] = product;
   });
   return lookup;
 };
 
 const getCategoryName = (product) => {
   if (!product) return "General";
-  if (product.category && product.category.name) {
-    return product.category.name;
-  }
-  if (product.categoryName) {
-    return product.categoryName;
-  }
+  if (product.categoryName) return product.categoryName;
+  if (product.category && product.category.name) return product.category.name;
   return "General";
 };
 
@@ -72,28 +64,22 @@ const Pos = () => {
   const [showReceipt, setShowReceipt] = useState(false);
 
   const hasSearchTerm = scanInput.trim().length > 0;
-
   const barcodeInputRef = useRef(null);
 
-  const focusScanner = () => {
-    barcodeInputRef.current?.focus();
-  };
+  const focusScanner = () => barcodeInputRef.current?.focus();
 
   useEffect(() => {
     const controller = new AbortController();
-
     const loadProducts = async () => {
       try {
         setLoadingProducts(true);
-        const data = await fetchProducts({ signal: controller.signal });
+        const data = await fetchInStockProducts({ signal: controller.signal });
         const list = Array.isArray(data) ? data : [];
         setProducts(list);
         setProductLookup(buildProductLookup(list));
         setProductError(null);
       } catch (error) {
-        if (error.name === "AbortError") {
-          return;
-        }
+        if (error.name === "AbortError") return;
         setProducts([]);
         setProductLookup({});
         setProductError(error.message || "Unable to load product catalog.");
@@ -101,7 +87,6 @@ const Pos = () => {
         setLoadingProducts(false);
       }
     };
-
     loadProducts();
     return () => controller.abort();
   }, []);
@@ -114,57 +99,32 @@ const Pos = () => {
 
   const categoryNames = useMemo(() => {
     const names = new Set();
-    products.forEach((product) => {
-      names.add(getCategoryName(product));
-    });
+    products.forEach((p) => names.add(getCategoryName(p)));
     return Array.from(names).sort((a, b) => a.localeCompare(b));
   }, [products]);
-
-  const featuredCategories = useMemo(() => {
-    return categoryNames.slice(0, 4);
-  }, [categoryNames]);
 
   const [activeCategory, setActiveCategory] = useState("Featured");
 
   useEffect(() => {
     if (activeCategory === "Featured") return;
-    if (!categoryNames.includes(activeCategory)) {
-      setActiveCategory("Featured");
-    }
+    if (!categoryNames.includes(activeCategory)) setActiveCategory("Featured");
   }, [categoryNames, activeCategory]);
 
   const categoryTabs = useMemo(() => {
-    if (categoryNames.length === 0) {
-      return ["Featured"];
-    }
+    if (categoryNames.length === 0) return ["Featured"];
     return ["Featured", ...categoryNames];
   }, [categoryNames]);
 
   const quickProducts = useMemo(() => {
-    if (products.length === 0) {
-      return [];
-    }
-
-    const filtered = products.filter((product) => {
-      const category = getCategoryName(product);
-      if (activeCategory === "Featured") {
-        if (featuredCategories.length === 0) {
-          return true;
-        }
-        return featuredCategories.includes(category);
-      }
-      return category === activeCategory;
-    });
-
-    return filtered.slice(0, 8);
-  }, [products, activeCategory, featuredCategories]);
+    if (products.length === 0) return [];
+    if (activeCategory === "Featured") return products;
+    return products.filter((product) => getCategoryName(product) === activeCategory);
+  }, [products, activeCategory]);
 
   const addProductToCart = (product, quantity = 1) => {
     const qty = Math.max(Math.floor(quantity), 1);
     setCart((prev) => {
-      const existing = prev.find(
-        (item) => item.productId === product.productId
-      );
+      const existing = prev.find((item) => item.productId === product.productId);
       if (existing) {
         return prev.map((item) =>
           item.productId === product.productId
@@ -191,18 +151,12 @@ const Pos = () => {
   const resolveProduct = useCallback(
     (query) => {
       const normalized = normalizeQuery(query);
-      if (!normalized) {
-        return null;
-      }
-
+      if (!normalized) return null;
       const exactSku = products.find((item) => {
         const sku = item?.sku ?? item?.barcode;
         return typeof sku === "string" && sku.toLowerCase() === normalized;
       });
-      if (exactSku) {
-        return exactSku;
-      }
-
+      if (exactSku) return exactSku;
       return productLookup[normalized] ?? null;
     },
     [productLookup, products]
@@ -211,19 +165,13 @@ const Pos = () => {
   const updateSearchMatches = useCallback(
     (value) => {
       const normalized = normalizeQuery(value);
-      if (!normalized) {
-        setSearchResults([]);
-        return;
-      }
-
+      if (!normalized) { setSearchResults([]); return; }
       const matches = products.filter((product) => {
         const fields = [product?.sku, product?.barcode, product?.name];
-        return fields.some((field) => {
-          if (typeof field !== "string") return false;
-          return field.toLowerCase().includes(normalized);
-        });
+        return fields.some(
+          (field) => typeof field === "string" && field.toLowerCase().includes(normalized)
+        );
       });
-
       setSearchResults(matches.slice(0, SEARCH_SUGGESTION_LIMIT));
     },
     [products]
@@ -237,10 +185,7 @@ const Pos = () => {
     if (!product) return;
     setCheckoutError(null);
     addProductToCart(product, 1);
-    setFeedback({
-      type: "success",
-      message: `${product.name ?? "Item"} added to cart`,
-    });
+    setFeedback({ type: "success", message: `${product.name ?? "Item"} added` });
     setScanInput("");
     setSearchResults([]);
     focusScanner();
@@ -249,22 +194,17 @@ const Pos = () => {
   const handleScanSubmit = (event) => {
     event.preventDefault();
     setCheckoutError(null);
-
     const query = scanInput.trim();
     if (!query) {
       setFeedback({ type: "warning", message: "Enter a SKU to add an item." });
       return;
     }
-
-    const product = resolveProduct(query) ?? (searchResults.length === 1 ? searchResults[0] : null);
+    const product =
+      resolveProduct(query) ?? (searchResults.length === 1 ? searchResults[0] : null);
     if (!product) {
-      setFeedback({
-        type: "danger",
-        message: `No product found for "${query}"`,
-      });
+      setFeedback({ type: "danger", message: `No product found for "${query}"` });
       return;
     }
-
     handleSelectProduct(product);
   };
 
@@ -272,17 +212,13 @@ const Pos = () => {
     setCart((prev) =>
       prev
         .map((item) =>
-          item.sku === sku
-            ? { ...item, qty: Math.max(item.qty + delta, 0) }
-            : item
+          item.sku === sku ? { ...item, qty: Math.max(item.qty + delta, 0) } : item
         )
         .filter((item) => item.qty > 0)
     );
   };
 
-  const handleRemove = (sku) => {
-    setCart((prev) => prev.filter((item) => item.sku !== sku));
-  };
+  const handleRemove = (sku) => setCart((prev) => prev.filter((item) => item.sku !== sku));
 
   const handleClear = () => {
     setCart([]);
@@ -294,14 +230,15 @@ const Pos = () => {
     focusScanner();
   };
 
+  const subTotal = useMemo(
+    () => cart.reduce((sum, item) => sum + item.price * item.qty, 0),
+    [cart]
+  );
 
-  const subTotal = useMemo(() => {
-    return cart.reduce((sum, item) => sum + item.price * item.qty, 0);
-  }, [cart]);
-
-  const qtyTotal = useMemo(() => {
-    return cart.reduce((sum, item) => sum + item.qty, 0);
-  }, [cart]);
+  const qtyTotal = useMemo(
+    () => cart.reduce((sum, item) => sum + item.qty, 0),
+    [cart]
+  );
 
   const changeDue = useMemo(() => {
     const received = Number.parseFloat(cashReceived);
@@ -311,19 +248,14 @@ const Pos = () => {
 
   const cashShort = useMemo(() => {
     const received = Number.parseFloat(cashReceived);
-    if (!Number.isFinite(received)) {
-      return subTotal > 0;
-    }
+    if (!Number.isFinite(received)) return subTotal > 0;
     return received + 1e-6 < subTotal;
   }, [cashReceived, subTotal]);
 
   const showEmptySearch = hasSearchTerm && searchResults.length === 0 && !loadingProducts;
 
   const handleCashShortcut = (value) => {
-    if (value === "EXACT") {
-      setCashReceived(subTotal.toFixed(2));
-      return;
-    }
+    if (value === "EXACT") { setCashReceived(subTotal.toFixed(2)); return; }
     setCashReceived(Number(value).toFixed(2));
   };
 
@@ -335,13 +267,11 @@ const Pos = () => {
       setFeedback({ type: "warning", message: "Scan at least one item." });
       return;
     }
-
     const cashAmount = Number.parseFloat(cashReceived);
     if (!Number.isFinite(cashAmount) || cashAmount < subTotal) {
       setCheckoutError("Cash received is less than the total due.");
       return;
     }
-
     const orderPayload = {
       userId: activeUserId,
       customerId: null,
@@ -354,17 +284,13 @@ const Pos = () => {
         price: item.price,
       })),
     };
-
     try {
       setSaving(true);
       const savedOrder = await createOrder(orderPayload);
       const orderId = savedOrder?.orderId;
       const orderNumber =
-        orderId != null
-          ? `INV-${String(orderId).padStart(5, "0")}`
-          : `TEMP-${Date.now()}`;
+        orderId != null ? `INV-${String(orderId).padStart(5, "0")}` : `TEMP-${Date.now()}`;
       const orderDate = savedOrder?.orderDate ?? new Date().toISOString();
-
       setReceiptData({
         orderNumber,
         orderDate,
@@ -389,10 +315,7 @@ const Pos = () => {
       setScanInput("");
       setSearchResults([]);
       setShowReceipt(true);
-      setFeedback({
-        type: "success",
-        message: "Sale completed. Receipt ready.",
-      });
+      setFeedback({ type: "success", message: "Sale completed. Receipt ready." });
       focusScanner();
     } catch (error) {
       setCheckoutError(error.message || "Unable to complete sale.");
@@ -408,352 +331,307 @@ const Pos = () => {
   };
 
   return (
-    <div className="pos-layout d-flex flex-column gap-3">
-      <div className="card shadow-sm p-3">
-        <form
-          onSubmit={handleScanSubmit}
-          className="pos-scan d-flex flex-column gap-3"
-        >
-          <div className="pos-scan-input">
-            <label className="form-label text-secondary text-uppercase small mb-2">
-              Scan SKU / type code
-            </label>
-            <div className="input-group input-group-lg sku-input-group">
-              <span className="input-group-text bg-white">
-                <i className="fa-solid fa-barcode"></i>
-              </span>
-              <input
-                ref={barcodeInputRef}
-                type="text"
-                className="form-control sku-input"
-                placeholder="Type SKU then press Enter"
-                value={scanInput}
-                onChange={(event) => setScanInput(event.target.value)}
-                disabled={loadingProducts}
-                autoFocus
-              />
-              <button
-                className="btn btn-primary"
-                type="submit"
-                disabled={loadingProducts}
-              >
-                Add Item
-              </button>
-            </div>
-            {(searchResults.length > 0 || showEmptySearch) && (
-              <div className="pos-search-results">
-                {searchResults.length > 0 ? (
-                  <>
-                    <div className="pos-search-results__header text-secondary text-uppercase small">
-                      Matching products
+    <div className="pos-touch-layout">
+
+      {/* ── HEADER: Search bar + Category tabs ── */}
+      <div className="pos-touch-header">
+        <div className="pos-touch-header-top">
+          <form onSubmit={handleScanSubmit} className="pos-touch-search-form">
+            <div className="pos-touch-search-wrap">
+              <div className="input-group input-group-lg">
+                <span className="input-group-text bg-white border-end-0">
+                  <i className="fa-solid fa-barcode text-secondary"></i>
+                </span>
+                <input
+                  ref={barcodeInputRef}
+                  type="text"
+                  className="form-control border-start-0 ps-0"
+                  placeholder="Scan barcode or type product name / SKU…"
+                  value={scanInput}
+                  onChange={(e) => setScanInput(e.target.value)}
+                  disabled={loadingProducts}
+                  autoFocus
+                />
+                <button
+                  className="btn btn-primary px-4"
+                  type="submit"
+                  disabled={loadingProducts}
+                >
+                  <i className="fa-solid fa-plus me-2"></i>Add
+                </button>
+              </div>
+
+              {/* Live search dropdown */}
+              {(searchResults.length > 0 || showEmptySearch) && (
+                <div className="pos-search-results pos-touch-search-dropdown">
+                  {searchResults.length > 0 ? (
+                    <>
+                      <div className="pos-search-results__header text-secondary text-uppercase small">
+                        Matching products
+                      </div>
+                      {searchResults.map((product, index) => (
+                        <button
+                          type="button"
+                          key={product.productId ?? product.sku ?? index}
+                          className="pos-search-results__item"
+                          onClick={() => handleSelectProduct(product)}
+                        >
+                          <div className="pos-search-results__item-info">
+                            <div className="fw-semibold">{product.name ?? "Unnamed product"}</div>
+                            <div className="text-secondary small">
+                              SKU: {product.sku ?? product.barcode ?? "N/A"}
+                            </div>
+                          </div>
+                          <div className="pos-search-results__item-price">
+                            {formatCurrency(Number(product.price) || 0)}
+                          </div>
+                        </button>
+                      ))}
+                    </>
+                  ) : (
+                    <div className="pos-search-results__empty text-secondary small">
+                      No matching products found.
                     </div>
-                    {searchResults.map((product, index) => (
-                      <button
-                        type="button"
-                        key={product.productId ?? product.sku ?? product.name ?? index}
-                        className="pos-search-results__item"
-                        onClick={() => handleSelectProduct(product)}
-                      >
-                        <div className="pos-search-results__item-info">
-                          <div className="fw-semibold">
-                            {product.name ?? "Unnamed product"}
-                          </div>
-                          <div className="text-secondary small">
-                            SKU: {product.sku ?? product.barcode ?? "N/A"}
-                          </div>
-                        </div>
-                        <div className="pos-search-results__item-price">
-                          {formatCurrency(Number(product.price) || 0)}
-                        </div>
-                      </button>
-                    ))}
-                  </>
-                ) : (
-                  <div className="pos-search-results__empty text-secondary small">
-                    No matching products. Check the SKU code.
-                  </div>
-                )}
-              </div>
-            )}
+                  )}
+                </div>
+              )}
+            </div>
+          </form>
+
+          {/* Status indicators */}
+          <div className="pos-touch-header-status">
             {loadingProducts && (
-              <div className="text-secondary small mt-2">
-                Loading product catalog�
-              </div>
+              <span className="text-secondary small">
+                <i className="fa-solid fa-spinner fa-spin me-1"></i>Loading catalog…
+              </span>
             )}
             {productError && !loadingProducts && (
-              <div
-                className="alert alert-danger py-2 px-3 mt-3 mb-0"
-                role="alert"
-              >
+              <div className="alert alert-danger py-1 px-3 mb-0 small" role="alert">
                 {productError}
               </div>
             )}
+            {feedback && (
+              <div className={`alert alert-${feedback.type} py-1 px-3 mb-0 small pos-touch-feedback`} role="alert">
+                {feedback.message}
+              </div>
+            )}
           </div>
-          <div className="pos-tabs text-nowrap">
-            {categoryTabs.map((category) => (
-              <button
-                key={category}
-                type="button"
-                className={`pos-tab btn btn-light btn-sm text-uppercase ${
-                  category === activeCategory ? "active" : ""
-                }`}
-                onClick={() => setActiveCategory(category)}
-              >
-                {category}
-              </button>
-            ))}
-          </div>
-        </form>
-        {feedback && (
-          <div
-            className={`alert alert-${feedback.type} py-2 px-3 mt-3 mb-0`}
-            role="alert"
-          >
-            {feedback.message}
-          </div>
-        )}
+        </div>
+
+        {/* Category tabs */}
+        <div className="pos-touch-tabs-row">
+          {categoryTabs.map((cat) => (
+            <button
+              key={cat}
+              type="button"
+              className={`pos-tab btn btn-sm text-uppercase${cat === activeCategory ? " active" : ""}`}
+              onClick={() => setActiveCategory(cat)}
+            >
+              {cat}
+            </button>
+          ))}
+        </div>
       </div>
 
-      
+      {/* ── BODY: Left products | Right cart ── */}
+      <div className="pos-touch-body">
 
-
-      <div className="d-flex flex-column flex-xl-row gap-3">
-        <div className="card shadow-sm flex-grow-1">
-          <div className="card-header bg-white d-flex justify-content-between align-items-center">
-            <div className="fw-semibold text-uppercase">Review Sale</div>
-            <div className="text-secondary small">Items: {qtyTotal}</div>
-          </div>
-          <div className="table-responsive" style={{ maxHeight: "48vh" }}>
-            <table className="table align-middle table-striped mb-0">
-              <thead className="table-light">
-                <tr>
-                  <th>#</th>
-                  <th>Item</th>
-                  <th className="text-center">Qty</th>
-                  <th className="text-end">Price</th>
-                  <th className="text-end">Total</th>
-                  <th className="text-center">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {cart.length === 0 && (
-                  <tr>
-                    <td colSpan={6} className="text-center text-secondary py-4">
-                      Scan a product to start a sale.
-                    </td>
-                  </tr>
-                )}
-                {cart.map((item, index) => (
-                  <tr key={item.sku}>
-                    <td>{index + 1}</td>
-                    <td>
-                      <div className="fw-semibold">{item.name}</div>
-                      <div className="text-secondary small">
-                        SKU: {item.sku}
-                      </div>
-                    </td>
-                    <td className="text-center">
-                      <div className="btn-group btn-group-sm" role="group">
-                        <button
-                          className="btn btn-outline-secondary"
-                          onClick={() => handleQuantityChange(item.sku, -1)}
-                        >
-                          <i className="fa-solid fa-minus"></i>
-                        </button>
-                        <span className="btn btn-light fw-semibold">
-                          {item.qty}
-                        </span>
-                        <button
-                          className="btn btn-outline-secondary"
-                          onClick={() => handleQuantityChange(item.sku, 1)}
-                        >
-                          <i className="fa-solid fa-plus"></i>
-                        </button>
-                      </div>
-                    </td>
-                    <td className="text-end">{formatCurrency(item.price)}</td>
-                    <td className="text-end">
-                      {formatCurrency(item.price * item.qty)}
-                    </td>
-                    <td className="text-center">
-                      <button
-                        className="btn btn-outline-danger btn-sm"
-                        onClick={() => handleRemove(item.sku)}
-                      >
-                        <i className="fa-solid fa-trash-can"></i>
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          {cart.length > 0 && (
-            <div className="card-footer bg-white d-flex justify-content-between align-items-center">
-              <button
-                className="btn btn-link text-danger"
-                onClick={handleClear}
-              >
-                <i className="fa-solid fa-xmark me-2"></i>Clear Sale
-              </button>
-              <div className="text-secondary small">
-                Adjust quantities or remove items before checkout.
-              </div>
+        {/* LEFT: Product grid — scrollable internally */}
+        <div className="pos-touch-products">
+          {quickProducts.length === 0 ? (
+            <div className="pos-touch-empty">
+              <i className="fa-solid fa-box-open mb-3"></i>
+              <div>No products in this category.</div>
+            </div>
+          ) : (
+            <div className="pos-touch-grid">
+              {quickProducts.map((product) => (
+                <button
+                  key={product.productId ?? product.sku}
+                  className="pos-touch-product-btn"
+                  onClick={() => handleSelectProduct(product)}
+                >
+                  <div className="pos-touch-product-name">
+                    {product.name ?? "Unnamed product"}
+                  </div>
+                  <div className="pos-touch-product-sku">
+                    {product.sku ?? product.barcode ?? "N/A"}
+                  </div>
+                  <div className="pos-touch-product-price">
+                    {formatCurrency(Number(product.price) || 0)}
+                  </div>
+                </button>
+              ))}
             </div>
           )}
         </div>
 
-        <div className="pos-summary card shadow-sm">
-          <div className="card-body">
-            <div className="d-flex justify-content-between mb-2 text-secondary small">
+        {/* RIGHT: Cart + Payment panel */}
+        <div className="pos-touch-cart-panel">
+
+          {/* Cart header */}
+          <div className="pos-touch-cart-header">
+            <div className="d-flex align-items-center gap-2">
+              <i className="fa-solid fa-receipt text-secondary"></i>
+              <span className="fw-bold text-uppercase" style={{ letterSpacing: "0.06em" }}>
+                Current Order
+              </span>
+            </div>
+            <div className="d-flex align-items-center gap-3">
+              <span className="text-secondary small">
+                {qtyTotal} {qtyTotal === 1 ? "item" : "items"}
+              </span>
+              {cart.length > 0 && (
+                <button
+                  className="btn btn-link text-danger btn-sm p-0 text-decoration-none"
+                  onClick={handleClear}
+                >
+                  <i className="fa-solid fa-trash-can me-1"></i>Clear
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Cart items list — scrollable */}
+          <div className="pos-touch-cart-items">
+            {cart.length === 0 ? (
+              <div className="pos-touch-cart-empty">
+                <i className="fa-solid fa-cart-shopping"></i>
+                <div>Tap a product or scan to start</div>
+              </div>
+            ) : (
+              cart.map((item) => (
+                <div key={item.sku} className="pos-touch-cart-row">
+                  <div className="pos-touch-cart-info">
+                    <div className="pos-touch-cart-item-name">{item.name}</div>
+                    <div className="pos-touch-cart-item-unit">
+                      {formatCurrency(item.price)} each
+                    </div>
+                  </div>
+                  <div className="pos-touch-cart-controls">
+                    <button
+                      className="pos-touch-qty-btn"
+                      onClick={() => handleQuantityChange(item.sku, -1)}
+                    >
+                      <i className="fa-solid fa-minus"></i>
+                    </button>
+                    <span className="pos-touch-qty-val">{item.qty}</span>
+                    <button
+                      className="pos-touch-qty-btn"
+                      onClick={() => handleQuantityChange(item.sku, 1)}
+                    >
+                      <i className="fa-solid fa-plus"></i>
+                    </button>
+                  </div>
+                  <div className="pos-touch-cart-line-total">
+                    {formatCurrency(item.price * item.qty)}
+                  </div>
+                  <button
+                    className="pos-touch-remove-btn"
+                    onClick={() => handleRemove(item.sku)}
+                    title="Remove item"
+                  >
+                    <i className="fa-solid fa-xmark"></i>
+                  </button>
+                </div>
+              ))
+            )}
+          </div>
+
+          {/* Payment section — always pinned at bottom */}
+          <div className="pos-touch-payment">
+            <div className="pos-touch-subtotal-row">
               <span>Subtotal</span>
-              <span>{formatCurrency(subTotal)}</span>
+              <span className="fw-bold fs-5">{formatCurrency(subTotal)}</span>
             </div>
-            <div className="d-flex justify-content-between mb-2 text-secondary small">
-              <span>Total Items</span>
-              <span>{qtyTotal}</span>
-            </div>
-            <div className="mb-3">
-              <label className="form-label text-secondary small">
+
+            <div className="pos-touch-cash-section">
+              <label className="pos-touch-cash-label">
+                <i className="fa-solid fa-money-bill-wave me-2 text-secondary"></i>
                 Cash Received
               </label>
-              <div className="input-group input-group-sm">
-                <span className="input-group-text">{CURRENCY_SYMBOL}</span>
+              <div className="input-group">
+                <span className="input-group-text fw-semibold">{CURRENCY_SYMBOL}</span>
                 <input
                   type="number"
                   min={0}
                   step={0.1}
-                  className="form-control"
+                  className="form-control form-control-lg text-end fw-semibold"
+                  placeholder="0.00"
                   value={cashReceived}
-                  onChange={(event) => setCashReceived(event.target.value)}
+                  onChange={(e) => setCashReceived(e.target.value)}
                 />
               </div>
-              <div className="d-flex gap-2 mt-2">
-                {["EXACT", 5, 10, 20].map((preset) => (
+              <div className="pos-touch-presets">
+                {["EXACT", 5, 10, 20, 50].map((preset) => (
                   <button
                     key={preset}
                     type="button"
-                    className="btn btn-outline-secondary btn-sm"
+                    className="pos-touch-preset-btn"
                     onClick={() => handleCashShortcut(preset)}
                   >
-                    {preset === "EXACT" ? "Exact" : preset}
+                    {preset === "EXACT" ? "Exact" : `$${preset}`}
                   </button>
                 ))}
               </div>
-              <div className="text-secondary small mt-1">
-                POS will calculate change automatically.
-              </div>
             </div>
 
-            <div className="d-flex justify-content-between text-secondary small mb-3">
-              <span>Change Due</span>
-              <span>{formatCurrency(changeDue)}</span>
+            <div className="pos-touch-change-row">
+              <span className="text-secondary">Change Due</span>
+              <span className={`fw-bold fs-5 ${changeDue > 0 ? "text-success" : "text-secondary"}`}>
+                {formatCurrency(changeDue)}
+              </span>
             </div>
 
             {checkoutError && (
-              <div className="alert alert-danger py-2" role="alert">
-                {checkoutError}
+              <div className="alert alert-danger py-2 px-3 mb-2 small" role="alert">
+                <i className="fa-solid fa-circle-exclamation me-2"></i>{checkoutError}
               </div>
             )}
-
             {cashShort && cart.length > 0 && !checkoutError && (
-              <div className="alert alert-warning py-2" role="alert">
-                Cash received is less than the sale total.
+              <div className="alert alert-warning py-2 px-3 mb-2 small" role="alert">
+                <i className="fa-solid fa-triangle-exclamation me-2"></i>
+                Cash received is less than the total.
               </div>
             )}
 
             <div className="d-grid gap-2">
               <button
-                className="btn btn-success btn-lg text-uppercase fw-semibold"
+                className="pos-touch-checkout-btn btn btn-success"
                 onClick={handleCheckout}
                 disabled={!canCheckout}
               >
-                {saving ? "Processing..." : "Checkout"}
+                {saving ? (
+                  <><i className="fa-solid fa-spinner fa-spin me-2"></i>Processing…</>
+                ) : (
+                  <><i className="fa-solid fa-check me-2"></i>Checkout — {formatCurrency(subTotal)}</>
+                )}
               </button>
               <button
                 className="btn btn-outline-secondary"
                 disabled={cart.length === 0}
               >
-                Put On Hold
+                <i className="fa-solid fa-pause me-2"></i>Put On Hold
               </button>
+            </div>
+
+            <div className="pos-touch-cashier-bar">
+              <i className="fa-solid fa-user-tie me-1 text-secondary"></i>
+              <span>{activeCashierName}</span>
+              <span className="pos-touch-cashier-sep">·</span>
+              <i className="fa-solid fa-store me-1 text-secondary"></i>
+              <span>{activeLocationName}</span>
             </div>
           </div>
         </div>
       </div>
 
-      <div className="card shadow-sm">
-        <div className="card-header bg-white d-flex justify-content-between align-items-center">
-          <div className="fw-semibold text-uppercase">Quick Picks</div>
-          <div className="text-secondary small">
-            Tap to add items without typing the SKU
-          </div>
-        </div>
-        <div className="card-body">
-          <div className="row g-3 g-lg-4 pos-quick-grid">
-            {quickProducts.map((product) => (
-              <div
-                className="col-12 col-sm-6 col-lg-4 col-xxl-3"
-                key={product.productId ?? product.sku}
-              >
-                <button
-                  className="btn btn-light w-100 h-100 text-start pos-quick-btn"
-                  onClick={() => handleSelectProduct(product)}
-                >
-                  <div className="fw-semibold">
-                    {product.name ?? "Unnamed product"}
-                  </div>
-                  <div className="text-secondary small">
-                    SKU: {product.sku ?? product.barcode ?? "N/A"}
-                  </div>
-                  <div className="fw-bold mt-2">
-                    {formatCurrency(Number(product.price) || 0)}
-                  </div>
-                </button>
-              </div>
-            ))}
-            {quickProducts.length === 0 && (
-              <div className="col">
-                <div className="alert alert-light mb-0">
-                  No quick picks available yet.
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-
-      <div className="pos-action-bar d-flex align-items-center justify-content-between px-3 py-2 mt-2">
-        <div>
-          <button className="btn btn-secondary btn-sm me-2">
-            Options (F1)
-          </button>
-          <button
-            className="btn btn-primary btn-sm me-2"
-            onClick={focusScanner}
-          >
-            New (F2)
-          </button>
-          <button className="btn btn-warning btn-sm me-2" disabled>
-            Hold (F3)
-          </button>
-          <button className="btn btn-success btn-sm" disabled>
-            Recall (F4)
-          </button>
-        </div>
-        <div className="small text-muted">
-          Cashier: {activeCashierName} | Branch: {activeLocationName}
-        </div>
-      </div>
-
+      {/* Receipt modal */}
       {showReceipt && receiptData && (
         <div className="pos-receipt-modal">
           <div className="pos-receipt-backdrop" onClick={closeReceipt}></div>
           <div className="pos-receipt-dialog">
-            <PrintInvoice
-              preview
-              receipt={receiptData}
-              onClose={closeReceipt}
-            />
+            <PrintInvoice preview receipt={receiptData} onClose={closeReceipt} />
           </div>
         </div>
       )}

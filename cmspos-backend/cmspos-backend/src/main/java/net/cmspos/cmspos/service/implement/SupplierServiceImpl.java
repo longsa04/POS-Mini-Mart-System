@@ -2,10 +2,13 @@ package net.cmspos.cmspos.service.implement;
 
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import net.cmspos.cmspos.exception.BadRequestException;
 import net.cmspos.cmspos.exception.ResourceNotFoundException;
 import net.cmspos.cmspos.model.dto.SupplierDto;
 import net.cmspos.cmspos.model.entity.Supplier;
+import net.cmspos.cmspos.repository.ProductSupplierRepository;
 import net.cmspos.cmspos.repository.SupplierRepository;
+import net.cmspos.cmspos.repository.purchase.PurchaseOrderRepository;
 import net.cmspos.cmspos.service.SupplierService;
 import org.springframework.stereotype.Service;
 
@@ -14,6 +17,8 @@ import org.springframework.stereotype.Service;
 public class SupplierServiceImpl implements SupplierService {
 
     private final SupplierRepository supplierRepository;
+    private final PurchaseOrderRepository purchaseOrderRepository;
+    private final ProductSupplierRepository productSupplierRepository;
 
     @Override
     public List<Supplier> getAllSuppliers() {
@@ -43,6 +48,12 @@ public class SupplierServiceImpl implements SupplierService {
     @Override
     public void deleteSupplier(Long id) {
         Supplier supplier = getSupplierById(id);
+        if (purchaseOrderRepository.existsBySupplier_SupplierId(id)) {
+            throw new BadRequestException("Supplier cannot be deleted while linked to purchase orders");
+        }
+        if (productSupplierRepository.existsBySupplier_SupplierId(id)) {
+            throw new BadRequestException("Supplier cannot be deleted while linked to product mappings");
+        }
         supplierRepository.delete(supplier);
     }
 

@@ -1,3 +1,5 @@
+import miniMartLogo from "../../../assets/mini-mart-mark.svg";
+
 const ReceiptBranding = () => {
   return (
     <div className="page">
@@ -11,13 +13,13 @@ const ReceiptBranding = () => {
         <div className="card-body">
           <h6>Logo preview</h6>
           <p className="text-secondary font-12">
-            Replace <code>mini-mart.png</code> with your own logo for live
+            Replace <code>mini-mart-mark.svg</code> with your own logo for live
             deployments.
           </p>
           <div className="border rounded p-3 d-inline-flex bg-light">
             <img
-              src="/src/assets/mini-mart.png"
-              alt="Mini mart logo"
+              src={miniMartLogo}
+              alt="MiniMart Hub logo"
               style={{ width: "140px" }}
             />
           </div>

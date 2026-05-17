@@ -2,8 +2,10 @@ package net.cmspos.cmspos.controller;
 
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import net.cmspos.cmspos.model.dto.SupplierProductDto;
 import net.cmspos.cmspos.model.dto.SupplierDto;
 import net.cmspos.cmspos.model.entity.Supplier;
+import net.cmspos.cmspos.service.ProductSupplierService;
 import net.cmspos.cmspos.service.SupplierService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -24,6 +26,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class SupplierController {
 
     private final SupplierService supplierService;
+    private final ProductSupplierService productSupplierService;
 
     @GetMapping
     public ResponseEntity<List<Supplier>> getSuppliers() {
@@ -39,6 +42,11 @@ public class SupplierController {
     @GetMapping("/{id}")
     public ResponseEntity<Supplier> getSupplier(@PathVariable Long id) {
         return ResponseEntity.ok(supplierService.getSupplierById(id));
+    }
+
+    @GetMapping("/{id}/products")
+    public ResponseEntity<List<SupplierProductDto>> getSupplierProducts(@PathVariable Long id) {
+        return ResponseEntity.ok(productSupplierService.getSupplierProducts(id));
     }
 
     @PutMapping("/{id}")

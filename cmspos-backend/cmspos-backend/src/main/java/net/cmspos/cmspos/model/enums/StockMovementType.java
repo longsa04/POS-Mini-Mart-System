@@ -6,5 +6,7 @@ public enum StockMovementType {
     RECEIVE,
     TRANSFER,
     ADJUSTMENT,
-    PURCHASE
+    PURCHASE,
+    /** Manual write-off for shrinkage, spoilage, or theft. Deducts FIFO batches without counting as a sale. */
+    WRITE_OFF
 }

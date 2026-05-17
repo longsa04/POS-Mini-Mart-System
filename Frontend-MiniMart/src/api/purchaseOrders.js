@@ -32,3 +32,31 @@ export const createPurchaseOrder = async (payload) => {
   return handleJsonResponse(response, "Failed to create purchase order");
 };
 
+export const receivePurchaseOrder = async (purchaseOrderId, payload) => {
+  const response = await fetch(
+    `${purchaseOrdersEndpoint}/${purchaseOrderId}/receive`,
+    {
+      method: "PUT",
+      headers: buildAuthHeaders({
+        Accept: "application/json",
+        "Content-Type": "application/json",
+      }),
+      body: JSON.stringify(payload),
+    }
+  );
+
+  return handleJsonResponse(response, "Failed to receive purchase order");
+};
+
+export const cancelPurchaseOrder = async (purchaseOrderId) => {
+  const response = await fetch(
+    `${purchaseOrdersEndpoint}/${purchaseOrderId}/cancel`,
+    {
+      method: "PUT",
+      headers: buildAuthHeaders({ Accept: "application/json" }),
+    }
+  );
+
+  return handleJsonResponse(response, "Failed to cancel purchase order");
+};
+

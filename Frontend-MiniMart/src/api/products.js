@@ -11,6 +11,15 @@ export const fetchProducts = async ({ signal } = {}) => {
   return handleJsonResponse(response, "Failed to load products");
 };
 
+export const fetchInStockProducts = async ({ signal } = {}) => {
+  const response = await fetch(`${productsEndpoint}/in-stock`, {
+    signal,
+    headers: buildAuthHeaders({ Accept: "application/json" }),
+  });
+
+  return handleJsonResponse(response, "Failed to load in-stock products");
+};
+
 export const createProduct = async (payload) => {
   const response = await fetch(productsEndpoint, {
     method: "POST",
@@ -44,4 +53,13 @@ export const deleteProduct = async (productId) => {
   });
 
   await handleJsonResponse(response, "Failed to delete product");
+};
+
+export const fetchPreferredSupplier = async (productId, { signal } = {}) => {
+  const response = await fetch(`${productsEndpoint}/${productId}/preferred-supplier`, {
+    signal,
+    headers: buildAuthHeaders({ Accept: "application/json" }),
+  });
+
+  return handleJsonResponse(response, "Failed to load preferred supplier");
 };
